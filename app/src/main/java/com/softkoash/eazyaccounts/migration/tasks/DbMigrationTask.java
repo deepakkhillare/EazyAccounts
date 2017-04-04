@@ -7,9 +7,17 @@ import android.util.Log;
 
 import com.softkoash.eazyaccounts.migration.MigrationListener;
 import com.softkoash.eazyaccounts.migration.MigrationStats;
+import com.softkoash.eazyaccounts.model.Account;
 import com.softkoash.eazyaccounts.model.Company;
+import com.softkoash.eazyaccounts.model.Currency;
+import com.softkoash.eazyaccounts.model.CurrencyValue;
+
+import java.util.Random;
 
 import io.realm.Realm;
+import io.realm.RealmConfiguration;
+import io.realm.RealmList;
+import io.realm.RealmResults;
 
 /**
  * Created by Deepak on 3/28/2017.
@@ -35,36 +43,93 @@ public class DbMigrationTask extends AsyncTask<SQLiteDatabase, Integer, Migratio
         return migrationStats;
     }
 
+    private Realm getRealm(String company) {
+        RealmConfiguration companyRealmConfig = new RealmConfiguration.Builder()
+//                .directory(new File(Environment.getExternalStorageDirectory() + "/softkoashdb/"))
+                .name(company+".realm")
+//                .encryptionKey(EazyAccountsApp.encryption.getBytes())
+                .build();
+        Log.i(TAG, "Company realm config: " + companyRealmConfig.getPath());
+        return Realm.getInstance(companyRealmConfig);
+    }
+
     private void migrateCompanyData(SQLiteDatabase existingDb, final MigrationStats migrationStats) {
         Cursor companiesCursor = null;
         try {
-            Realm realm = Realm.getDefaultInstance();
-            companiesCursor = existingDb.rawQuery("SELECT CompanyName, Version FROM COMPANYINFO", null);
+            Realm realm = getRealm("c1");
+            RealmResults<Company> companies = realm.where(Company.class).findAll();
+            RealmResults<Account> ledgers = realm.where(Account.class).findAll();
+            for (Account ledger: ledgers) {
+                Log.i(TAG, "Opening balances:"+ledger.getOpeningBalances());
+            }
+//            realm.executeTransaction(new Realm.Transaction() {
+//                @Override
+//                public void execute(Realm realm) {
+//                    realm.copyToRealm(usdCurrency);
+//                }
+//            });
+//            realm.executeTransaction(new Realm.Transaction() {
+//                @Override
+//                public void execute(Realm realm) {
+//                    realm.copyToRealm(inrCurrency);
+//                }
+//            });
+
+            realm.executeTransaction(new Realm.Transaction() {
+                @Override
+                public void execute(Realm realm) {
+                    final Currency usdCurrency = new Currency();
+                    usdCurrency.setName("USD");
+                    realm.copyToRealm(usdCurrency);
+                    final Currency inrCurrency = new Currency();
+                    inrCurrency.setName("INR");
+                    realm.copyToRealm(inrCurrency);
+                    RealmList<CurrencyValue> openingBals = new RealmList<>();
+                    CurrencyValue cv = new CurrencyValue();
+                    cv.setCurrency(usdCurrency);
+                    cv.setValue(new Random().nextDouble());
+                    openingBals.add(cv);
+                    cv = new CurrencyValue();
+                    cv.setCurrency(inrCurrency);
+                    cv.setValue(new Random().nextDouble());
+                    openingBals.add(cv);
+                    final Account ledger = new Account();
+                    ledger.setOpeningBalances(openingBals);
+                    realm.copyToRealm(ledger);
+                }
+            });
+
+            companiesCursor = existingDb.rawQuery("SELECT Id, CompanyName, Version, IsDirty, IsDeleted FROM COMPANYINFO", null);
             if (null != companiesCursor) {
                 while (companiesCursor.moveToNext()) {
-                    final Company existingCompany = new Company();
-                    existingCompany.setName(companiesCursor.getString(0));
-                    existingCompany.setSystemVersion(companiesCursor.getString(1));
-                    Log.d(TAG, "Loaded company: " + existingCompany.getName());
+                    int i = 0;
+                    final Company company = new Company();
+//                    company.setId(companiesCursor.getInt(i++));
+                    company.setName(companiesCursor.getString(i++));
+                    company.setAppVersion(companiesCursor.getString(i++));
+//                    company.setDirty(companiesCursor.getInt(i++) == 0 ? false : true);
+//                    company.setDeleted(companiesCursor.getInt(i++) == 0 ? false : true);
+                    Log.d(TAG, "Loaded company: " + company.getName());
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
                         public void execute(Realm realm) {
                             try {
-                                Company company = realm.createObject(Company.class);
-                                company.setName(existingCompany.getName());
-                                company.setSystemVersion(existingCompany.getSystemVersion());
+                                realm.copyToRealm(company);
+//                                Company company = realm.createObject(Company.class);
+//                                company.setName(existingCompany.getName());
+//                                company.setAppVersion(existingCompany.getAppVersion());
                                 migrationStats.addCompaniesCreated();
                             } catch (Exception e) {
-                                Log.e(TAG, "Error writing company " + existingCompany.getName() + " to realm", e);
-                                migrationListener.onFail("Error writing company " + existingCompany.getName() + " to realm", e);
+                                Log.e(TAG, "Error writing company " + company.getName() + " to realm", e);
+                                migrationListener.onFail("Error writing company " + company.getName() + " to realm", e);
                             }
                         }
                     });
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "Error reading the company table", e);
-            migrationListener.onFail("Error reading the company table", e);
+            Log.e(TAG, "Error migrating company", e);
+            migrationListener.onFail("Error migrating company", e);
         } finally {
             companiesCursor.close();
         }
