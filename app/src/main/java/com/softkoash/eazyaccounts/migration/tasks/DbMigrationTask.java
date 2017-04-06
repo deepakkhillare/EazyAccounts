@@ -28,6 +28,7 @@ public class DbMigrationTask extends AsyncTask<SQLiteDatabase, Integer, Migratio
         final MigrationStats migrationStats = new MigrationStats();
         try {
             migrateCompanyData(params[0], migrationStats);
+
         } catch(Exception e) {
             Log.e(TAG, "Failed to migrate database", e);
             migrationListener.onFail("Failed to migrate database", e);
@@ -36,7 +37,7 @@ public class DbMigrationTask extends AsyncTask<SQLiteDatabase, Integer, Migratio
     }
 
     private void migrateCompanyData(SQLiteDatabase existingDb, final MigrationStats migrationStats) {
-        Cursor companiesCursor = null;
+            Cursor companiesCursor = null;
         try {
             Realm realm = Realm.getDefaultInstance();
             companiesCursor = existingDb.rawQuery("SELECT CompanyName, Version FROM COMPANYINFO", null);

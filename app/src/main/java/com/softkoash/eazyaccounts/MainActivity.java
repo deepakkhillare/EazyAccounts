@@ -1,5 +1,6 @@
 package com.softkoash.eazyaccounts;
 
+import android.Manifest;
 import android.content.Intent;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
@@ -11,7 +12,9 @@ import android.widget.Toast;
 
 import com.softkoash.eazyaccounts.migration.MigrationListener;
 import com.softkoash.eazyaccounts.migration.MigrationStats;
+import com.softkoash.eazyaccounts.service.MigrationService;
 import com.softkoash.eazyaccounts.util.FileUtil;
+import com.softkoash.eazyaccounts.util.UiUtil;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -51,19 +54,9 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == REQUEST_FILE_CHOOSER && resultCode == RESULT_OK) {
             Uri selectedFile = data.getData();
             String filePath = FileUtil.getPath(this, selectedFile);
-            SQLiteDatabase existingDb = SQLiteDatabase.openDatabase(filePath, null, SQLiteDatabase.OPEN_READONLY);
-            new com.softkoash.eazyaccounts.migration.tasks.DbMigrationTask(new MigrationListener(){
-                @Override
-                public void onFail(String message, Exception e) {
-                    Toast.makeText(MainActivity.this, "Failed to migrate data", Toast.LENGTH_LONG);
-                }
-
-                @Override
-                public void onSuccess(MigrationStats stats) {
-                    Toast.makeText(MainActivity.this, "Successfully migrated data!", Toast.LENGTH_LONG);
-                }
-            }).execute(existingDb);
+            MigrationService migrationService = new MigrationService(filePath);
+            UiUtil.createProgressDialog(this);
+            migrationService.executeDBMigration(this);
         }
     }
-
 }

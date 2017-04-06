@@ -7,6 +7,7 @@ public class MigrationStats {
     private int companiesCreated;
     private int ledgersCreated;
     private int vouchersCreated;
+    private int configurationCreated;
 
     public int getCompaniesCreated() {
         return companiesCreated;
@@ -14,6 +15,14 @@ public class MigrationStats {
 
     public void setCompaniesCreated(int companiesCreated) {
         this.companiesCreated = companiesCreated;
+    }
+
+    public int getConfigurationCreated() {
+        return configurationCreated;
+    }
+
+    public void setConfigurationCreated(int configurationCreated) {
+        this.configurationCreated = configurationCreated;
     }
 
     public void addCompaniesCreated() {
