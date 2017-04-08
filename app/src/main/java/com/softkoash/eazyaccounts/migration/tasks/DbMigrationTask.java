@@ -45,7 +45,7 @@ public class DbMigrationTask extends AsyncTask<SQLiteDatabase, Integer, Migratio
                 while (companiesCursor.moveToNext()) {
                     final Company existingCompany = new Company();
                     existingCompany.setName(companiesCursor.getString(0));
-                    existingCompany.setSystemVersion(companiesCursor.getString(1));
+//                    existingCompany.setSystemVersion(companiesCursor.getString(1));
                     Log.d(TAG, "Loaded company: " + existingCompany.getName());
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -53,7 +53,7 @@ public class DbMigrationTask extends AsyncTask<SQLiteDatabase, Integer, Migratio
                             try {
                                 Company company = realm.createObject(Company.class);
                                 company.setName(existingCompany.getName());
-                                company.setSystemVersion(existingCompany.getSystemVersion());
+//                                company.setSystemVersion(existingCompany.getSystemVersion());
                                 migrationStats.addCompaniesCreated();
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing company " + existingCompany.getName() + " to realm", e);

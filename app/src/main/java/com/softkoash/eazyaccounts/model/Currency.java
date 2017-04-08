@@ -4,7 +4,9 @@ import java.util.Date;
 
 import io.realm.Realm;
 import io.realm.RealmObject;
+import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
+import io.realm.annotations.Required;
 
 /**
  * Created by Nirav on 03-04-2017.
@@ -13,14 +15,46 @@ import io.realm.annotations.PrimaryKey;
 public class Currency extends RealmObject implements AutoIncrementable {
     @PrimaryKey
     private int id;
-    private int orderNumber;
+    @Required
+    private String orderNumber;
+    @Required @Index
     private String name;
-    private String shortName;
-    private int decimalPoints;
-    private int isDirty;
-    private int isDeleted;
+    @Required @Index
+    private String code;
+    @Required
+    private Integer decimalScale;
+    private boolean isDirty;
+    private boolean isDeleted;
+    @Required
     private Date createdDate;
     private Date updateDate;
+    private Company company;
+    private String createdBy;
+    private String updatedBy;
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public String getUpdatedBy() {
+        return updatedBy;
+    }
+
+    public void setUpdatedBy(String updatedBy) {
+        this.updatedBy = updatedBy;
+    }
+
+    public Company getCompany() {
+        return company;
+    }
+
+    public void setCompany(Company company) {
+        this.company = company;
+    }
 
     public int getId() {
         return id;
@@ -30,11 +64,11 @@ public class Currency extends RealmObject implements AutoIncrementable {
         this.id = id;
     }
 
-    public int getOrderNumber() {
+    public String getOrderNumber() {
         return orderNumber;
     }
 
-    public void setOrderNumber(int orderNumber) {
+    public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber;
     }
 
@@ -46,36 +80,36 @@ public class Currency extends RealmObject implements AutoIncrementable {
         this.name = name;
     }
 
-    public String getShortName() {
-        return shortName;
+    public String getCode() {
+        return code;
     }
 
-    public void setShortName(String shortName) {
-        this.shortName = shortName;
+    public void setCode(String code) {
+        this.code = code;
     }
 
-    public int getDecimalPoints() {
-        return decimalPoints;
+    public int getDecimalScale() {
+        return decimalScale;
     }
 
-    public void setDecimalPoints(int decimalPoints) {
-        this.decimalPoints = decimalPoints;
+    public void setDecimalScale(int decimalScale) {
+        this.decimalScale = decimalScale;
     }
 
-    public int getIsDirty() {
+    public boolean isDirty() {
         return isDirty;
     }
 
-    public void setIsDirty(int isDirty) {
-        this.isDirty = isDirty;
+    public void setDirty(boolean dirty) {
+        isDirty = dirty;
     }
 
-    public int getIsDeleted() {
+    public boolean isDeleted() {
         return isDeleted;
     }
 
-    public void setIsDeleted(int isDeleted) {
-        this.isDeleted = isDeleted;
+    public void setDeleted(boolean deleted) {
+        isDeleted = deleted;
     }
 
     public Date getCreatedDate() {

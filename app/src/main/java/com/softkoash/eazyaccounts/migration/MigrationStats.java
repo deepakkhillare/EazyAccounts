@@ -8,6 +8,24 @@ public class MigrationStats {
     private int ledgersCreated;
     private int vouchersCreated;
     private int configurationCreated;
+    private int currencyCreated;
+    private int unitCreated;
+
+    public int getCurrencyCreated() {
+        return currencyCreated;
+    }
+
+    public void setCurrencyCreated(int currencyCreated) {
+        this.currencyCreated = currencyCreated;
+    }
+
+    public int getUnitCreated() {
+        return unitCreated;
+    }
+
+    public void setUnitCreated(int unitCreated) {
+        this.unitCreated = unitCreated;
+    }
 
     public int getCompaniesCreated() {
         return companiesCreated;
@@ -29,6 +47,17 @@ public class MigrationStats {
         this.companiesCreated++;
     }
 
+    public void addConfigurationCreated() {
+        this.configurationCreated++;
+    }
+
+    public void addCurrencyCreated() {
+        this.currencyCreated++;
+    }
+
+    public void addUnitCreated() {
+        this.unitCreated++;
+    }
     public int getLedgersCreated() {
         return ledgersCreated;
     }

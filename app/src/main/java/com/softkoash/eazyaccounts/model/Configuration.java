@@ -4,7 +4,9 @@ import java.util.Date;
 
 import io.realm.Realm;
 import io.realm.RealmObject;
+import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
+import io.realm.annotations.Required;
 
 /**
  * Created by Nirav on 03-04-2017.
@@ -12,22 +14,30 @@ import io.realm.annotations.PrimaryKey;
 
 public class Configuration extends RealmObject implements AutoIncrementable {
     @PrimaryKey
-    private int configurationId;
-    private String name;
-    private String category;
-    private String value;
-    private int isDirty;
-    private int isDeleted;
-    private Date modifiedBy;
-    private Date modifiedTime;
-    private Date serverUpdateTime;
+    private int id;
 
-    public int getConfigurationId() {
-        return configurationId;
+    @Required @Index
+    private String name;
+
+    @Required @Index
+    private String category;
+
+    private String value;
+    private boolean isDirty;
+    private boolean isDeleted;
+    private String updatedBy;
+    private Date updateDate;
+
+    @Required
+    private Date createdDate;
+    private String createdBy;
+
+    public int getId() {
+        return id;
     }
 
-    public void setConfigurationId(int configurationId) {
-        this.configurationId = configurationId;
+    public void setId(int id) {
+        this.id = id;
     }
 
     public String getName() {
@@ -54,54 +64,62 @@ public class Configuration extends RealmObject implements AutoIncrementable {
         this.value = value;
     }
 
-    public int getIsDirty() {
+    public boolean isDirty() {
         return isDirty;
     }
 
-    public void setIsDirty(int isDirty) {
-        this.isDirty = isDirty;
+    public void setDirty(boolean dirty) {
+        isDirty = dirty;
     }
 
-    public int getIsDeleted() {
+    public boolean isDeleted() {
         return isDeleted;
     }
 
-    public void setIsDeleted(int isDeleted) {
-        this.isDeleted = isDeleted;
+    public void setDeleted(boolean deleted) {
+        isDeleted = deleted;
     }
 
-    public Date getModifiedBy() {
-        return modifiedBy;
+    public String getUpdatedBy() {
+        return updatedBy;
     }
 
-    public void setModifiedBy(Date modifiedBy) {
-        this.modifiedBy = modifiedBy;
+    public void setUpdatedBy(String updatedBy) {
+        this.updatedBy = updatedBy;
     }
 
-    public Date getModifiedTime() {
-        return modifiedTime;
+    public Date getUpdateDate() {
+        return updateDate;
     }
 
-    public void setModifiedTime(Date modifiedTime) {
-        this.modifiedTime = modifiedTime;
+    public void setUpdateDate(Date updateDate) {
+        this.updateDate = updateDate;
     }
 
-    public Date getServerUpdateTime() {
-        return serverUpdateTime;
+    public Date getCreatedDate() {
+        return createdDate;
     }
 
-    public void setServerUpdateTime(Date serverUpdateTime) {
-        this.serverUpdateTime = serverUpdateTime;
+    public void setCreatedDate(Date createdDate) {
+        this.createdDate = createdDate;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
     }
 
     @Override
     public void setPrimaryKey(int primaryKey) {
-        this.configurationId = primaryKey;
+        this.id = primaryKey;
     }
 
     @Override
     public int getNextPrimaryKey(Realm realm) {
-        Number primaryKey = realm.where(Configuration.class).max("ConfigurationId");
+        Number primaryKey = realm.where(Configuration.class).max("id");
         int primaryKeyIntValue;
         if(primaryKey == null) {
             primaryKeyIntValue = 1;

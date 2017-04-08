@@ -4,7 +4,9 @@ import java.util.Date;
 
 import io.realm.Realm;
 import io.realm.RealmObject;
+import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
+import io.realm.annotations.Required;
 
 /**
  * Created by Nirav on 03-04-2017.
@@ -13,13 +15,21 @@ import io.realm.annotations.PrimaryKey;
 public class Unit extends RealmObject implements AutoIncrementable {
     @PrimaryKey
     private int id;
+    @Required
+    @Index
+    private String code;
+    @Required
+    @Index
     private String name;
-    private String shortName;
-    private int decimalPoints;
-    private int isDirty;
-    private int isDeleted;
+    @Required
+    private Integer decimalScale;
+    private boolean isDirty;
+    private boolean isDeleted;
+    @Required
     private Date createdDate;
     private Date updatedDate;
+    private String createdBy;
+    private String updatedBy;
 
     public int getId() {
         return id;
@@ -37,36 +47,36 @@ public class Unit extends RealmObject implements AutoIncrementable {
         this.name = name;
     }
 
-    public String getShortName() {
-        return shortName;
+    public String getCode() {
+        return code;
     }
 
-    public void setShortName(String shortName) {
-        this.shortName = shortName;
+    public void setCode(String code) {
+        this.code = code;
     }
 
-    public int getDecimalPoints() {
-        return decimalPoints;
+    public int getDecimalScale() {
+        return decimalScale;
     }
 
-    public void setDecimalPoints(int decimalPoints) {
-        this.decimalPoints = decimalPoints;
+    public void setDecimalScale(int decimalScale) {
+        this.decimalScale = decimalScale;
     }
 
-    public int getIsDirty() {
+    public boolean isDirty() {
         return isDirty;
     }
 
-    public void setIsDirty(int isDirty) {
-        this.isDirty = isDirty;
+    public void setDirty(boolean dirty) {
+        isDirty = dirty;
     }
 
-    public int getIsDeleted() {
+    public boolean isDeleted() {
         return isDeleted;
     }
 
-    public void setIsDeleted(int isDeleted) {
-        this.isDeleted = isDeleted;
+    public void setDeleted(boolean deleted) {
+        isDeleted = deleted;
     }
 
     public Date getCreatedDate() {
@@ -83,6 +93,22 @@ public class Unit extends RealmObject implements AutoIncrementable {
 
     public void setUpdatedDate(Date updatedDate) {
         this.updatedDate = updatedDate;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public String getUpdatedBy() {
+        return updatedBy;
+    }
+
+    public void setUpdatedBy(String updatedBy) {
+        this.updatedBy = updatedBy;
     }
 
     @Override

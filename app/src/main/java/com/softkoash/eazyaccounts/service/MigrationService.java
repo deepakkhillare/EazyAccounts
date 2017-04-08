@@ -1,20 +1,26 @@
 package com.softkoash.eazyaccounts.service;
 
-import android.content.Context;
+import android.app.IntentService;
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.os.Build;
+import android.provider.Settings;
+import android.support.annotation.Nullable;
 import android.util.Log;
 
-import com.softkoash.eazyaccounts.migration.MigrationListener;
 import com.softkoash.eazyaccounts.migration.MigrationStats;
 import com.softkoash.eazyaccounts.model.AutoIncrementable;
 import com.softkoash.eazyaccounts.model.Company;
 import com.softkoash.eazyaccounts.model.Configuration;
 import com.softkoash.eazyaccounts.model.Currency;
 import com.softkoash.eazyaccounts.model.Unit;
-import com.softkoash.eazyaccounts.util.UiUtil;
 
+import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import io.realm.Realm;
 import io.realm.RealmObject;
@@ -23,25 +29,41 @@ import io.realm.RealmObject;
  * Created by Nirav on 03-04-2017.
  */
 
-public class MigrationService {
+public class MigrationService extends IntentService {
     private static final String TAG = MigrationService.class.getSimpleName();
     private String dbFilePath;
     private final int workProgressPercentage = 100;
     final MigrationStats migrationStats = new MigrationStats();
+    final Map<String, Currency> currencyMap = new HashMap<>();
 
-    public MigrationService(String dbFilePath) {
-        this.dbFilePath = dbFilePath;
+    public MigrationService() {
+        super(TAG);
     }
 
-    public void executeDBMigration(final Context uiContext) {
-        invokeCompanyMigrationTask(uiContext);
-        invokeConfigurationDataMigrationTask(uiContext);
-        invokeUnitDataMigrationService(uiContext);
-        invokeCurrencyDataMigration(uiContext);
+    @Override
+    protected void onHandleIntent(@Nullable Intent intent) {
+        dbFilePath = intent.getStringExtra("DB_FILE_PATH");
+        if(dbFilePath != null && !dbFilePath.isEmpty()) {
+            executeDBMigration();
+        }
     }
-    private void invokeCompanyMigrationTask(final Context uiContext) {
-        SQLiteDatabase existingDb = SQLiteDatabase.openDatabase(dbFilePath, null, SQLiteDatabase.OPEN_READONLY);
-        migrateCompanyData(existingDb, migrationStats);
+
+    public void executeDBMigration() {
+        invokeCompanyMigrationTask();
+        invokeConfigurationDataMigrationTask();
+        invokeUnitDataMigrationService();
+        invokeCurrencyDataMigration();
+    }
+    private void invokeCompanyMigrationTask() {
+        File file = new File(dbFilePath);
+        SQLiteDatabase existingDb = null;
+        if(file.exists() && !file.isDirectory()) {
+            existingDb = SQLiteDatabase.openDatabase(dbFilePath, null, SQLiteDatabase.OPEN_READONLY);
+            migrateCompanyData(existingDb, migrationStats);
+        }
+        if( existingDb != null) {
+            existingDb.close();
+        }
     }
 
     private void migrateCompanyData(SQLiteDatabase existingDb, final MigrationStats migrationStats) {
@@ -49,20 +71,33 @@ public class MigrationService {
         Cursor companiesCursor = null;
         try {
             Realm realm = Realm.getDefaultInstance();
-            companiesCursor = existingDb.rawQuery("SELECT CompanyName, Version FROM COMPANYINFO", null);
+            companiesCursor = existingDb.rawQuery("SELECT CompanyName, Version, IsDirty, IsDeleted FROM COMPANYINFO", null);
             if (null != companiesCursor) {
                 while (companiesCursor.moveToNext()) {
                     final Company existingCompany = new Company();
-                    existingCompany.setName(companiesCursor.getString(0));
-                    existingCompany.setSystemVersion(companiesCursor.getString(1));
+                    String companyName = companiesCursor.getString(0);
+                    existingCompany.setName(companyName);
+                    existingCompany.setCode(companyName);
+                    existingCompany.setAppVersion(companiesCursor.getString(1));
+                    existingCompany.setDirty(companiesCursor.getInt(2) == 1 ? true : false);
+                    existingCompany.setDeleted(companiesCursor.getInt(3) == 1 ? true : false);
+                    existingCompany.setCreatedDate(new Date());
+                    existingCompany.setCreatedBy(getDeviceId());
+                    existingCompany.setUpdatedDate(new Date());
+                    existingCompany.setUpdatedBy(getDeviceId());
                     Log.d(TAG, "Loaded company: " + existingCompany.getName());
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
                         public void execute(Realm realm) {
                             try {
-                                realm.copyToRealm(existingCompany);
+                                if(existingCompany instanceof AutoIncrementable) {
+                                    AutoIncrementable autoIncrementable = (AutoIncrementable) existingCompany;
+                                    autoIncrementable.setPrimaryKey(autoIncrementable.getNextPrimaryKey(realm));
+                                    realm.copyToRealm((RealmObject)autoIncrementable);
+                                } else {
+                                    realm.copyToRealm(existingCompany);
+                                }
                                 migrationStats.addCompaniesCreated();
-
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing company " + existingCompany.getName() + " to realm", e);
                                 throw e;
@@ -80,7 +115,7 @@ public class MigrationService {
         }
     }
 
-    private void invokeConfigurationDataMigrationTask(final Context uiContext) {
+    private void invokeConfigurationDataMigrationTask() {
         SQLiteDatabase existingDb = SQLiteDatabase.openDatabase(dbFilePath, null, SQLiteDatabase.OPEN_READONLY);
         migrateConfigurationData(existingDb, migrationStats);
     }
@@ -93,18 +128,27 @@ public class MigrationService {
             String rawQuery = "select ConfigurationID, Name, Category, Value, IsDirty, IsDeleted, ModifiedBy, ModifiedTime, ServerUpdateTime from Configuration";
             configurationCursor = existingDb.rawQuery(rawQuery, null);
             if(null != configurationCursor) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:SS");
                 while(configurationCursor.moveToNext()) {
                     final Configuration existingConfiguration = new Configuration();
-                    existingConfiguration.setConfigurationId(configurationCursor.getInt(0));
+                    String category = configurationCursor.getString(2);
+                    existingConfiguration.setId(configurationCursor.getInt(0));
                     existingConfiguration.setName(configurationCursor.getString(1));
-                    existingConfiguration.setCategory(configurationCursor.getString(2));
+                    existingConfiguration.setCategory(category);
                     existingConfiguration.setValue(configurationCursor.getString(3));
-                    existingConfiguration.setIsDirty(configurationCursor.getInt(4));
-                    existingConfiguration.setIsDeleted(configurationCursor.getInt(5));
-                    existingConfiguration.setModifiedBy(new Date(configurationCursor.getLong(6)));
-                    existingConfiguration.setModifiedTime(new Date(configurationCursor.getLong(7)));
-                    existingConfiguration.setServerUpdateTime(new Date(configurationCursor.getLong(8)));
-                    Log.d(TAG, "Loaded company: " + existingConfiguration.getName());
+                    existingConfiguration.setDirty((configurationCursor.getInt(4) == 1 ? true : false));
+                    existingConfiguration.setDeleted((configurationCursor.getInt(5) == 1 ? true : false));
+                    String modifiedTimeStr = configurationCursor.getString(7);
+                    if(modifiedTimeStr != null && !modifiedTimeStr.isEmpty()) {
+                        Date modifiedTime = sdf.parse(modifiedTimeStr);
+                        existingConfiguration.setUpdateDate(modifiedTime);
+                    }
+                    existingConfiguration.setCreatedDate(new Date());
+                    existingConfiguration.setCreatedBy(getDeviceId());
+                    if(category.equals("Currency")) {
+                        populateCurrencyMap(configurationCursor, existingConfiguration, category);
+                    }
+                    Log.d(TAG, "Loaded configuration: " + existingConfiguration.getName());
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
                         public void execute(Realm realm) {
@@ -116,7 +160,7 @@ public class MigrationService {
                                 } else {
                                     realm.copyToRealm(existingConfiguration);
                                 }
-                                migrationStats.addCompaniesCreated();
+                                migrationStats.addConfigurationCreated();
                             } catch (Exception ex) {
                                 Log.e(TAG, "Error while writing configuration "+ existingConfiguration.getName()  +"data");
                                 throw ex;
@@ -133,7 +177,28 @@ public class MigrationService {
             }
         }
     }
-    private void invokeCurrencyDataMigration(final Context uiContext) {
+
+    private void populateCurrencyMap(Cursor configurationCursor, Configuration existingConfiguration, String category) {
+            String name = existingConfiguration.getName();
+            String value = existingConfiguration.getValue();
+            if(null == currencyMap.get(name) && !name.startsWith("S")) {
+                Currency currency = new Currency();
+                //currency.setCode(currencyCursor.getString(1));
+                currency.setDirty(existingConfiguration.isDirty());
+                currency.setDeleted(existingConfiguration.isDeleted());
+                currency.setDecimalScale(2); //Note: We don't have unitPrecision column in Configuration table, hence set to 2 as default.
+                currency.setCreatedDate(new Date());
+                currency.setCreatedBy(getDeviceId());
+                currency.setOrderNumber(Integer.toString(configurationCursor.getInt(0)));
+                currency.setName(value);
+               currencyMap.put(name, currency);
+            } else if(name.startsWith("S") && currencyMap.containsKey(name.replace("S","")) && (null != currencyMap.get(name.replace("S","")))) {
+                Currency c = currencyMap.get(name.replace("S",""));
+                c.setCode(value);
+            }
+    }
+
+    private void invokeCurrencyDataMigration() {
         SQLiteDatabase existingDb = SQLiteDatabase.openDatabase(dbFilePath, null, SQLiteDatabase.OPEN_READONLY);
         migrateCurrencyData(existingDb, migrationStats);
     }
@@ -143,24 +208,25 @@ public class MigrationService {
         Cursor currencyCursor = null;
         try {
             Realm realm = Realm.getDefaultInstance();
-            currencyCursor = existingDb.rawQuery("Select Name, IsDirty, IsDeleted from configuration where category='currency'", null);
-            if(currencyCursor != null) {
-                while (currencyCursor.moveToNext()) {
-                    final Currency existingCurrency =  new Currency();
-                    existingCurrency.setName(currencyCursor.getString(0));
-                    existingCurrency.setIsDirty(currencyCursor.getInt(1));
-                    existingCurrency.setIsDeleted(currencyCursor.getInt(2));
-                    existingCurrency.setCreatedDate(new Date()); //TODO : confirm this its working on it.
-                    Log.d(TAG, "Loaded currency: " + existingCurrency.getName());
+            if(currencyMap.size() > 0) {
+                for (final Currency c : currencyMap.values()) {
+                    Log.d(TAG, "Loaded currency: " + c.getName());
                     realm.executeTransaction(new Realm.Transaction(){
                         @Override
                         public void execute(Realm realm) {
-                            if(existingCurrency instanceof AutoIncrementable){
-                                AutoIncrementable autoIncrementable = (AutoIncrementable) realm;
-                                autoIncrementable.setPrimaryKey(autoIncrementable.getNextPrimaryKey(realm));
-                                realm.copyToRealm((RealmObject)autoIncrementable);
-                            } else {
-                                realm.copyToRealm(existingCurrency);
+                            try {
+                                if (c instanceof AutoIncrementable) {
+                                    AutoIncrementable autoIncrementable = (AutoIncrementable) c;
+                                    int id = autoIncrementable.getNextPrimaryKey(realm);
+                                    autoIncrementable.setPrimaryKey(id);
+                                    realm.copyToRealm((RealmObject) autoIncrementable);
+                                } else {
+                                    realm.copyToRealm(c);
+                                }
+                                migrationStats.addCurrencyCreated();
+                            }catch (Exception ex) {
+                                Log.e(TAG, "Error while writing currency "+ c.getName()  +"data");
+                                throw ex;
                             }
                         }
                     });
@@ -170,13 +236,13 @@ public class MigrationService {
             Log.e(TAG, "Error reading the configuration table currency data", ex);
             throw ex;
         } finally {
-            if(currencyCursor != null) {
+                if(currencyCursor != null) {
                 currencyCursor.close();
             }
         }
     }
 
-    private void invokeUnitDataMigrationService(final Context uiContext) {
+    private void invokeUnitDataMigrationService() {
         SQLiteDatabase existingDb = SQLiteDatabase.openDatabase(dbFilePath, null, SQLiteDatabase.OPEN_READONLY);
         migrateUnitData(existingDb, migrationStats);
     }
@@ -189,22 +255,33 @@ public class MigrationService {
             if(null != unitCursor) {
                 while(unitCursor.moveToNext()) {
                     final Unit existingUnit = new Unit();
+                    String deviceId = getDeviceId();
+                    existingUnit.setCode(unitCursor.getString(1));
                     existingUnit.setName(unitCursor.getString(0));
-                    existingUnit.setShortName(unitCursor.getString(1));
-                    existingUnit.setIsDirty(unitCursor.getInt(2));
-                    existingUnit.setIsDeleted(unitCursor.getInt(3));
-                    existingUnit.setDecimalPoints(unitCursor.getInt(4));
+                    existingUnit.setDirty((unitCursor.getInt(2) == 1 ? true : false));
+                    existingUnit.setDeleted((unitCursor.getInt(3) == 1 ? true : false));
+                    existingUnit.setDecimalScale(unitCursor.getInt(4));
+                    existingUnit.setCreatedDate(new Date());
+                    existingUnit.setCreatedBy(deviceId);
+                    existingUnit.setUpdatedBy(deviceId);
+                    existingUnit.setUpdatedDate(new Date());
                     Log.d(TAG, "Loaded unit: " + existingUnit.getName());
                     realm.executeTransaction(new Realm.Transaction(){
                         @Override
                         public void execute(Realm realm) {
-                            if(existingUnit instanceof AutoIncrementable) {
+                         try{
+                            if (existingUnit instanceof AutoIncrementable) {
                                 AutoIncrementable autoIncrementable = (AutoIncrementable) existingUnit;
                                 autoIncrementable.setPrimaryKey(autoIncrementable.getNextPrimaryKey(realm));
-                                realm.copyToRealm((RealmObject)autoIncrementable);
+                                realm.copyToRealm((RealmObject) autoIncrementable);
                             } else {
                                 realm.copyToRealm(existingUnit);
                             }
+                            migrationStats.addUnitCreated();
+                          } catch (Exception ex) {
+                             Log.e(TAG, "Error while writing unit "+ existingUnit.getName()  +"data");
+                             throw ex;
+                         }
                         }
                     });
                 }
@@ -216,6 +293,33 @@ public class MigrationService {
                 unitCursor.close();
             }
         }
+    }
+
+    public String getDeviceId() {
+
+        String UniqueDeviceID = convertStringToNumber(Build.SERIAL);
+        if (UniqueDeviceID.length() < 15) {
+            UniqueDeviceID += convertStringToNumber(Build.ID);
+        }
+        if (UniqueDeviceID.length() < 15) {
+            UniqueDeviceID += convertStringToNumber(Build.HARDWARE);
+        }
+        if (UniqueDeviceID.length() > 15) {
+            UniqueDeviceID = UniqueDeviceID.substring(0, 15);
+        }
+        return UniqueDeviceID;
+    }
+
+    private String convertStringToNumber(String StringToConvert) {
+        String result = "";
+        char[] buffer = StringToConvert.toCharArray();
+        for (int i = buffer.length - 1; i > -1; i--) {
+            result += (byte) buffer[i];
+        }
+        if (result.length() > 15) {
+            return result.substring(0, 15);
+        } else
+            return result;
     }
 
 }
