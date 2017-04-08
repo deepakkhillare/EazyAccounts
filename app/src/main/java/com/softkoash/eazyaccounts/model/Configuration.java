@@ -8,23 +8,21 @@ import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-/**
- * Created by Nirav on 03-04-2017.
- */
-
 public class Configuration extends RealmObject implements AutoIncrementable {
     @PrimaryKey
-    private int id;
+    private Integer id;
 
-    @Required @Index
+    @Required
+    @Index
     private String name;
 
-    @Required @Index
+    @Required
+    @Index
     private String category;
 
     private String value;
-    private boolean isDirty;
-    private boolean isDeleted;
+    private Boolean isDirty;
+    private Boolean isDeleted;
     private String updatedBy;
     private Date updateDate;
 
@@ -32,11 +30,11 @@ public class Configuration extends RealmObject implements AutoIncrementable {
     private Date createdDate;
     private String createdBy;
 
-    public int getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -64,19 +62,19 @@ public class Configuration extends RealmObject implements AutoIncrementable {
         this.value = value;
     }
 
-    public boolean isDirty() {
+    public Boolean isDirty() {
         return isDirty;
     }
 
-    public void setDirty(boolean dirty) {
+    public void setDirty(Boolean dirty) {
         isDirty = dirty;
     }
 
-    public boolean isDeleted() {
+    public Boolean isDeleted() {
         return isDeleted;
     }
 
-    public void setDeleted(boolean deleted) {
+    public void setDeleted(Boolean deleted) {
         isDeleted = deleted;
     }
 
@@ -121,10 +119,10 @@ public class Configuration extends RealmObject implements AutoIncrementable {
     public int getNextPrimaryKey(Realm realm) {
         Number primaryKey = realm.where(Configuration.class).max("id");
         int primaryKeyIntValue;
-        if(primaryKey == null) {
+        if (primaryKey == null) {
             primaryKeyIntValue = 1;
         } else {
-            primaryKeyIntValue = primaryKey.intValue() + 1 ;
+            primaryKeyIntValue = primaryKey.intValue() + 1;
         }
         return primaryKeyIntValue;
     }

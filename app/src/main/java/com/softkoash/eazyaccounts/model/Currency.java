@@ -8,23 +8,21 @@ import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-/**
- * Created by Nirav on 03-04-2017.
- */
-
 public class Currency extends RealmObject implements AutoIncrementable {
     @PrimaryKey
-    private int id;
+    private Integer id;
     @Required
-    private String orderNumber;
-    @Required @Index
+    private Integer orderNumber;
+    @Required
+    @Index
     private String name;
-    @Required @Index
+    @Required
+    @Index
     private String code;
     @Required
     private Integer decimalScale;
-    private boolean isDirty;
-    private boolean isDeleted;
+    private Boolean isDirty;
+    private Boolean isDeleted;
     @Required
     private Date createdDate;
     private Date updateDate;
@@ -56,19 +54,19 @@ public class Currency extends RealmObject implements AutoIncrementable {
         this.company = company;
     }
 
-    public int getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
-    public String getOrderNumber() {
+    public Integer getOrderNumber() {
         return orderNumber;
     }
 
-    public void setOrderNumber(String orderNumber) {
+    public void setOrderNumber(Integer orderNumber) {
         this.orderNumber = orderNumber;
     }
 
@@ -88,27 +86,27 @@ public class Currency extends RealmObject implements AutoIncrementable {
         this.code = code;
     }
 
-    public int getDecimalScale() {
+    public Integer getDecimalScale() {
         return decimalScale;
     }
 
-    public void setDecimalScale(int decimalScale) {
+    public void setDecimalScale(Integer decimalScale) {
         this.decimalScale = decimalScale;
     }
 
-    public boolean isDirty() {
+    public Boolean isDirty() {
         return isDirty;
     }
 
-    public void setDirty(boolean dirty) {
+    public void setDirty(Boolean dirty) {
         isDirty = dirty;
     }
 
-    public boolean isDeleted() {
+    public Boolean isDeleted() {
         return isDeleted;
     }
 
-    public void setDeleted(boolean deleted) {
+    public void setDeleted(Boolean deleted) {
         isDeleted = deleted;
     }
 
@@ -136,11 +134,11 @@ public class Currency extends RealmObject implements AutoIncrementable {
     @Override
     public int getNextPrimaryKey(Realm realm) {
         Number primaryKey = realm.where(Currency.class).max("id");
-        int primaryKeyIntValue ;
-        if(primaryKey == null) {
+        int primaryKeyIntValue;
+        if (primaryKey == null) {
             primaryKeyIntValue = 1;
         } else {
-            primaryKeyIntValue = primaryKey.intValue() + 1 ;
+            primaryKeyIntValue = primaryKey.intValue() + 1;
         }
         return primaryKeyIntValue;
     }

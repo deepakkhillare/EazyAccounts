@@ -1,11 +1,9 @@
 package com.softkoash.eazyaccounts;
 
 import android.Manifest;
-import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Build;
 import android.support.v4.app.ActivityCompat;
@@ -17,16 +15,13 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
-import com.softkoash.eazyaccounts.migration.MigrationListener;
-import com.softkoash.eazyaccounts.migration.MigrationStats;
-import com.softkoash.eazyaccounts.service.MigrationService;
+import com.softkoash.eazyaccounts.migration.service.MigrationService;
 import com.softkoash.eazyaccounts.util.FileUtil;
-import com.softkoash.eazyaccounts.util.UiUtil;
 
 public class MainActivity extends AppCompatActivity {
 
     private final String TAG = MainActivity.class.getName();
-    private Context mContext ;
+    private Context mContext;
     //request codes
     private final int REQUEST_FILE_CHOOSER = 1;
     private final int WRITE_PERMISSION_REQUEST_CODE = 999;
@@ -41,24 +36,20 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        if (Build.VERSION.SDK_INT >= 23)
-        {
-            if (checkPermission())
-            {
+        if (Build.VERSION.SDK_INT >= 23) {
+            if (checkPermission()) {
                 initWidgets();
             } else {
                 requestPermission(); // Code for permission
             }
-        }
-        else
-        {
+        } else {
             initWidgets();
         }
 
     }
 
     private void initWidgets() {
-        this.openFileButton = (Button)findViewById(R.id.btnOpenFile);
+        this.openFileButton = (Button) findViewById(R.id.btnOpenFile);
         this.openFileButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -121,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.e("value", "Permission Denied, You cannot use local drive for write.");
                 }
                 break;
-            case READ_PERMISSION_REQUEST_CODE :
+            case READ_PERMISSION_REQUEST_CODE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Log.e("value", "Permission Granted, Now you can use local drive for read.");
                     isReadingAllowed = true;

@@ -3,9 +3,6 @@ package com.softkoash.eazyaccounts.model;
 import io.realm.RealmList;
 import io.realm.RealmObject;
 
-/**
- * Created by Deepak on 4/3/2017.
- */
 public class Product extends RealmObject {
 
     private Integer id;

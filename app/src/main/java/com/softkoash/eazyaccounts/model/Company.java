@@ -8,24 +8,24 @@ import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-/**
- * Created by Deepak on 3/27/2017.
- */
-public class Company extends RealmObject implements AutoIncrementable{
+public class Company extends RealmObject implements AutoIncrementable {
     @PrimaryKey
-    private int id;
-    @Required @Index
+    private Integer id;
+
+    @Required
+    @Index
     private String name;
 
     @Required
     private String appVersion;
 
-    @Required @Index
+    @Required
+    @Index
     private String code;
 
-    private boolean isDirty;
+    private Boolean isDirty;
 
-    private boolean isDeleted;
+    private Boolean isDeleted;
 
     @Required
     private Date createdDate;
@@ -68,11 +68,11 @@ public class Company extends RealmObject implements AutoIncrementable{
         this.updatedBy = updatedBy;
     }
 
-    public int getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -104,15 +104,15 @@ public class Company extends RealmObject implements AutoIncrementable{
         return isDirty;
     }
 
-    public void setDirty(boolean dirty) {
+    public void setDirty(Boolean dirty) {
         isDirty = dirty;
     }
 
-    public boolean isDeleted() {
+    public Boolean isDeleted() {
         return isDeleted;
     }
 
-    public void setDeleted(boolean deleted) {
+    public void setDeleted(Boolean deleted) {
         isDeleted = deleted;
     }
 
@@ -125,10 +125,10 @@ public class Company extends RealmObject implements AutoIncrementable{
     public int getNextPrimaryKey(Realm realm) {
         Number primaryKey = realm.where(Configuration.class).max("id");
         int primaryKeyIntValue;
-        if(primaryKey == null) {
+        if (primaryKey == null) {
             primaryKeyIntValue = 1;
         } else {
-            primaryKeyIntValue = primaryKey.intValue() + 1 ;
+            primaryKeyIntValue = primaryKey.intValue() + 1;
         }
 
         return primaryKeyIntValue;

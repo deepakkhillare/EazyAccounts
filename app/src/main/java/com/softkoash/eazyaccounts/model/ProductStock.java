@@ -1,11 +1,9 @@
 package com.softkoash.eazyaccounts.model;
 
 import io.realm.RealmList;
+import io.realm.RealmObject;
 
-/**
- * Created by Deepak on 4/3/2017.
- */
-public class ProductStock {
+public class ProductStock extends RealmObject{
     private Integer id;
 
     private Double grossQuantity;

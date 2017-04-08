@@ -5,9 +5,6 @@ import io.realm.RealmObject;
 import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 
-/**
- * Created by Deepak on 4/3/2017.
- */
 public class Account extends RealmObject {
     @PrimaryKey
     private Integer id;

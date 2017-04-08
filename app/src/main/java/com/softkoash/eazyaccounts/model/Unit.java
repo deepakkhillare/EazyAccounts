@@ -8,13 +8,9 @@ import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-/**
- * Created by Nirav on 03-04-2017.
- */
-
 public class Unit extends RealmObject implements AutoIncrementable {
     @PrimaryKey
-    private int id;
+    private Integer id;
     @Required
     @Index
     private String code;
@@ -23,19 +19,19 @@ public class Unit extends RealmObject implements AutoIncrementable {
     private String name;
     @Required
     private Integer decimalScale;
-    private boolean isDirty;
-    private boolean isDeleted;
+    private Boolean isDirty;
+    private Boolean isDeleted;
     @Required
     private Date createdDate;
     private Date updatedDate;
     private String createdBy;
     private String updatedBy;
 
-    public int getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -55,27 +51,27 @@ public class Unit extends RealmObject implements AutoIncrementable {
         this.code = code;
     }
 
-    public int getDecimalScale() {
+    public Integer getDecimalScale() {
         return decimalScale;
     }
 
-    public void setDecimalScale(int decimalScale) {
+    public void setDecimalScale(Integer decimalScale) {
         this.decimalScale = decimalScale;
     }
 
-    public boolean isDirty() {
+    public Boolean isDirty() {
         return isDirty;
     }
 
-    public void setDirty(boolean dirty) {
+    public void setDirty(Boolean dirty) {
         isDirty = dirty;
     }
 
-    public boolean isDeleted() {
+    public Boolean isDeleted() {
         return isDeleted;
     }
 
-    public void setDeleted(boolean deleted) {
+    public void setDeleted(Boolean deleted) {
         isDeleted = deleted;
     }
 
@@ -121,7 +117,7 @@ public class Unit extends RealmObject implements AutoIncrementable {
         Number primaryKey = realm.where(Unit.class).max("id");
         int primaryKeyIntValue;
 
-        if(primaryKey == null) {
+        if (primaryKey == null) {
             primaryKeyIntValue = 1;
         } else {
             primaryKeyIntValue = primaryKey.intValue() + 1;

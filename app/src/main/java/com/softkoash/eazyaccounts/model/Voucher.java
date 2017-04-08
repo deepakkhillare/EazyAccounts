@@ -4,9 +4,6 @@ import java.util.Date;
 
 import io.realm.RealmList;
 
-/**
- * Created by Deepak on 4/3/2017.
- */
 public class Voucher {
     private Integer id;
 

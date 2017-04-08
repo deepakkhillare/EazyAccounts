@@ -1,9 +1,8 @@
 package com.softkoash.eazyaccounts.model;
 
-/**
- * Created by Deepak on 4/3/2017.
- */
-public class CreditInfo {
+import io.realm.RealmObject;
+
+public class CreditInfo extends RealmObject {
     private Integer id;
 
     private Integer periodInDays;

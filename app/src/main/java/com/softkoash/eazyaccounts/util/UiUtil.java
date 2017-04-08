@@ -4,10 +4,6 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.widget.Toast;
 
-/**
- * Created by Nirav on 03-04-2017.
- */
-
 public class UiUtil {
 
     private static ProgressDialog progressDialog;

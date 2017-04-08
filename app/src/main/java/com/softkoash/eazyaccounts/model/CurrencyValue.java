@@ -4,14 +4,10 @@ import io.realm.RealmObject;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-/**
- * Created by Deepak on 4/3/2017.
- */
 public class CurrencyValue extends RealmObject {
     @PrimaryKey
     private Integer id;
 
-    @Required
     private Currency currency;
 
     @Required
