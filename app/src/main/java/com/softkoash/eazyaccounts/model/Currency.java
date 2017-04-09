@@ -12,6 +12,7 @@ public class Currency extends RealmObject implements AutoIncrementable {
     @PrimaryKey
     private Integer id;
     @Required
+    @Index
     private Integer orderNumber;
     @Required
     @Index

@@ -10,22 +10,30 @@ import android.util.Log;
 
 import com.softkoash.eazyaccounts.migration.MigrationException;
 import com.softkoash.eazyaccounts.migration.MigrationStats;
+import com.softkoash.eazyaccounts.model.Account;
+import com.softkoash.eazyaccounts.model.AccountGroup;
 import com.softkoash.eazyaccounts.model.Company;
 import com.softkoash.eazyaccounts.model.Configuration;
+import com.softkoash.eazyaccounts.model.Contact;
+import com.softkoash.eazyaccounts.model.CreditInfo;
 import com.softkoash.eazyaccounts.model.Currency;
 import com.softkoash.eazyaccounts.model.CurrencyValue;
 import com.softkoash.eazyaccounts.model.Product;
 import com.softkoash.eazyaccounts.model.ProductGroup;
+import com.softkoash.eazyaccounts.model.ProductSubscription;
 import com.softkoash.eazyaccounts.model.Unit;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import io.realm.Realm;
+import io.realm.RealmConfiguration;
 import io.realm.RealmList;
 import io.realm.RealmResults;
 
@@ -64,6 +72,7 @@ public class MigrationService extends IntentService {
                 migrateUnitData(existingDb);
                 migrateCurrencyData(existingDb);
                 migrateItemData(existingDb);
+                migrateLedgerData(existingDb);
             } catch(MigrationException me){
                 Log.e(TAG, "Failed to migrate data", me);
             } finally {
@@ -84,7 +93,7 @@ public class MigrationService extends IntentService {
         Log.d(TAG, "Called migrate Product data...");
         Cursor productDataCursor = null;
         try {
-            Realm realm = Realm.getDefaultInstance();
+            Realm realm = getRealm();
             StringBuilder sql = new StringBuilder();
             sql.append(" select Id, Name, Remark, ");
             sql.append(" PriceCurrency1, PriceCurrency2, PriceCurrency3, Unit,");
@@ -178,7 +187,7 @@ public class MigrationService extends IntentService {
         Cursor productGroupCursor = null;
         try {
             String sql = "select Id, Name, Remark, IsDirty, IsDeleted from Item where Item.IsGroup = 1 Order by Id";
-            Realm realm = Realm.getDefaultInstance();
+            Realm realm = getRealm();
             productGroupCursor = existingDb.rawQuery(sql, null);
             if( null != productGroupCursor) {
                 while(productGroupCursor.moveToNext()) {
@@ -222,7 +231,7 @@ public class MigrationService extends IntentService {
         Cursor companiesCursor = null;
         Company rvCompany = null;
         try {
-            Realm realm = Realm.getDefaultInstance();
+            Realm realm = getRealm();
             companiesCursor = existingDb.rawQuery("SELECT Id, CompanyName, Version, IsDirty, IsDeleted FROM COMPANYINFO", null);
             if (null != companiesCursor) {
                 //NB: there will be only one company in existing sqlite database...
@@ -243,7 +252,7 @@ public class MigrationService extends IntentService {
                         @Override
                         public void execute(Realm realm) {
                             try {
-                                realm.copyToRealm(company);
+                                realm.copyToRealmOrUpdate(company);
                                 migrationStats.addCompaniesCreated();
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing company " + company.getName() + " to realm", e);
@@ -269,7 +278,7 @@ public class MigrationService extends IntentService {
         Log.d(TAG, "Called migrate configuration data...");
         Cursor configurationCursor = null;
         try {
-            Realm realm = Realm.getDefaultInstance();
+            Realm realm = getRealm();
             Log.d(TAG, "Realm file path:" + realm.getPath());
             String rawQuery = "select ConfigurationID, Name, Category, Value, IsDirty, IsDeleted, ModifiedTime from Configuration";
             configurationCursor = existingDb.rawQuery(rawQuery, null);
@@ -301,7 +310,7 @@ public class MigrationService extends IntentService {
                         @Override
                         public void execute(Realm realm) {
                             try {
-                                realm.copyToRealm(configuration);
+                                realm.copyToRealmOrUpdate(configuration);
                                 migrationStats.addConfigurationCreated();
                             } catch (Exception ex) {
                                 Log.e(TAG, "Error while writing configuration " + configuration, ex);
@@ -359,7 +368,7 @@ public class MigrationService extends IntentService {
         Log.d(TAG, "Called migrate currency data...");
         Cursor currencyCursor = null;
         try {
-            Realm realm = Realm.getDefaultInstance();
+            Realm realm = getRealm();
             if (currencyConfigs.size() > 0) {
                 for (int i = 1; i < 4; i++) {
                     final Currency currency = createCurrency(currencyConfigs.get("C" + i), currencyConfigs.get("SC" + i), currencyConfigs.get("D" + i));
@@ -399,7 +408,7 @@ public class MigrationService extends IntentService {
         Log.d(TAG, "Called migrate unit data...");
         Cursor unitCursor = null;
         try {
-            Realm realm = Realm.getDefaultInstance();
+            Realm realm = getRealm();
             unitCursor = existingDb.rawQuery("select Id, Name, ShortName, IsDirty, IsDeleted, UnitPrecision from Unit", null);
             if (null != unitCursor) {
                 while (unitCursor.moveToNext()) {
@@ -419,7 +428,7 @@ public class MigrationService extends IntentService {
                         @Override
                         public void execute(Realm realm) {
                             try {
-                                realm.copyToRealm(unit);
+                                realm.copyToRealmOrUpdate(unit);
                                 migrationStats.addUnitCreated();
                             } catch (Exception ex) {
                                 Log.e(TAG, "Error while writing unit " + unit, ex);
@@ -466,4 +475,316 @@ public class MigrationService extends IntentService {
             return result;
     }
 
+    private void migrateLedgerGroups(SQLiteDatabase sqLiteDatabase) throws MigrationException {
+        Cursor ledgerCursor = null;
+        try {
+            Realm realm = getRealm();
+            ledgerCursor = sqLiteDatabase.rawQuery("SELECT Id, Name, IsDirty, IsDeleted FROM Ledger where IsGroup = 1", null);
+            if (null != ledgerCursor) {
+                while (ledgerCursor.moveToNext()) {
+                    int i = 0;
+                    final AccountGroup accountGroup = new AccountGroup();
+                    accountGroup.setId(ledgerCursor.getInt(i++));
+                    accountGroup.setName(ledgerCursor.getString(i++));
+                    accountGroup.setDirty(ledgerCursor.getInt(i++) == 1 ? true : false);
+                    accountGroup.setDeleted(ledgerCursor.getInt(i++) == 1 ? true : false);
+                    accountGroup.setCreatedDate(new Date());
+                    accountGroup.setCreatedBy(getDeviceId());
+                    Log.d(TAG, "Loaded account group: " + accountGroup);
+                    realm.executeTransaction(new Realm.Transaction() {
+                        @Override
+                        public void execute(Realm realm) {
+                            try {
+                                realm.copyToRealmOrUpdate(accountGroup);
+                                migrationStats.addLedgersCreated();
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error writing account group " + accountGroup + " to realm", e);
+                                throw e;
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Error migrating the leger group table", ex);
+            throw new MigrationException("Error migrating the leger group table", ex);
+        } finally {
+            if (ledgerCursor != null) {
+                ledgerCursor.close();
+            }
+        }
+    }
+
+    private static int getNextPrimaryKey(Realm realm, Class realmClass) {
+        Number primaryKey = realm.where(realmClass).max("id");
+        int primaryKeyIntValue;
+
+        if (primaryKey == null) {
+            primaryKeyIntValue = 1;
+        } else {
+            primaryKeyIntValue = primaryKey.intValue() + 1;
+        }
+        return primaryKeyIntValue;
+    }
+
+    private void migrateLedgerData(SQLiteDatabase sqLiteDatabase) throws MigrationException {
+        // Ledger -> Account
+        Log.d(TAG, "Called migrate ledger data...");
+        // first add the groups...
+        migrateLedgerGroups(sqLiteDatabase);
+        Cursor ledgerCursor = null;
+        try {
+            Realm realm = getRealm();
+            ledgerCursor = sqLiteDatabase.rawQuery("SELECT Id, Name, IsDirty, IsDeleted, Under, IsSystem" +
+                    ", OpeningBalanceCurrency1, OpeningBalanceCurrency2, OpeningBalanceCurrency3 " +
+                    ", Locality, Address, City, PrimaryMobileNo, CreditLimitLevel1, CreditLimitLevel2 " +
+                    " FROM Ledger", null);
+            if (null != ledgerCursor) {
+                //NB: there will be only one company in existing sqlite database...
+                while (ledgerCursor.moveToNext()) {
+                    int i = 0;
+                    final Account account = new Account();
+                    account.setId(ledgerCursor.getInt(i++));
+                    account.setName(ledgerCursor.getString(i++));
+                    account.setDirty(ledgerCursor.getInt(i++) == 1 ? true : false);
+                    account.setDeleted(ledgerCursor.getInt(i++) == 1 ? true : false);
+                    account.setCreatedDate(new Date());
+                    account.setCreatedBy(getDeviceId());
+
+                    AccountGroup accountGroup = realm.where(AccountGroup.class).equalTo("id", ledgerCursor.getInt(i++)).findFirst();
+                    account.setGroup(accountGroup);
+                    account.setCompanyAccount(ledgerCursor.getInt(i++) == 1 ? true : false);
+
+                    RealmList<CurrencyValue> openingBalances = new RealmList<>();
+                    for (int j = 1; j < 4; j++) {
+                        final CurrencyValue cv = new CurrencyValue();
+                        cv.setValue(ledgerCursor.getDouble(i++));
+                        // TODO Need to test this part thoroughly
+                        Currency currency = realm.where(Currency.class).equalTo("orderNumber", i).findFirst();
+                        if (null != currency) {
+                            cv.setCurrency(currency);
+                            realm.executeTransaction(new Realm.Transaction() {
+                                @Override
+                                public void execute(Realm realm) {
+                                    try {
+                                        realm.copyToRealmOrUpdate(cv);
+                                    } catch (Exception e) {
+                                        Log.e(TAG, "Error writing currency value " + cv + " to realm", e);
+                                        throw e;
+                                    }
+                                }
+                            });
+                            openingBalances.add(cv);
+                        }
+                    }
+                    account.setOpeningBalances(openingBalances);
+
+                    final Contact contact = new Contact();
+                    contact.setLocality(ledgerCursor.getString(i++));
+                    contact.setAddress(ledgerCursor.getString(i++));
+                    contact.setCity(ledgerCursor.getString(i++));
+                    contact.setPrimaryMobile(ledgerCursor.getString(i++));
+                    Log.d(TAG, "Loaded contact: " + contact);
+                    realm.executeTransaction(new Realm.Transaction() {
+                        @Override
+                        public void execute(Realm realm) {
+                            try {
+                                contact.setId(getNextPrimaryKey(realm, Contact.class));
+                                realm.copyToRealmOrUpdate(contact);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error writing contact " + contact + " to realm", e);
+                                throw e;
+                            }
+                        }
+                    });
+                    account.setContact(contact);
+
+                    final CreditInfo creditInfo = new CreditInfo();
+                    //for now there is no such value defined!
+                    creditInfo.setPeriodInDays(Integer.MAX_VALUE);
+                    creditInfo.setCreditLimit1(ledgerCursor.getDouble(i++));
+                    creditInfo.setCreditLimit2(ledgerCursor.getDouble(i++));
+                    Log.d(TAG, "Loaded credit info: " + creditInfo);
+                    realm.executeTransaction(new Realm.Transaction() {
+                        @Override
+                        public void execute(Realm realm) {
+                            try {
+                                creditInfo.setId(getNextPrimaryKey(realm, CreditInfo.class));
+                                realm.copyToRealmOrUpdate(creditInfo);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error writing credit info " + creditInfo + " to realm", e);
+                                throw e;
+                            }
+                        }
+                    });
+                    account.setCreditInfo(creditInfo);
+
+                    migrateLedgerBalances(sqLiteDatabase, account);
+
+                    migrateLedgerPriceList(sqLiteDatabase, account);
+
+                    Log.d(TAG, "Loaded account: " + account);
+                    realm.executeTransaction(new Realm.Transaction() {
+                        @Override
+                        public void execute(Realm realm) {
+                            try {
+                                realm.copyToRealmOrUpdate(account);
+                                migrationStats.addLedgersCreated();
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error writing account " + account + " to realm", e);
+                                throw e;
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Error migrating the leger table", ex);
+            throw new MigrationException("Error migrating the leger table", ex);
+        } finally {
+            if (ledgerCursor != null) {
+                ledgerCursor.close();
+            }
+        }
+    }
+
+    private void migrateLedgerBalances(SQLiteDatabase sqLiteDatabase, Account account) throws MigrationException {
+        Cursor ledgerCursor = null;
+        try {
+            Realm realm = getRealm();
+            ledgerCursor = sqLiteDatabase.rawQuery("SELECT BalanceCurrency1, BalanceCurrency2, BalanceCurrency3 FROM LedgerBalance where LedgerID = " + account.getId(), null);
+            if (null != ledgerCursor) {
+                //Only one balance for a given account
+                if (ledgerCursor.moveToNext()) {
+                    int i = 0;
+                    RealmList<CurrencyValue> currentBalances = new RealmList<>();
+                    for (int j = 1; j < 4; j++) {
+                        final CurrencyValue cv = new CurrencyValue();
+                        cv.setValue(ledgerCursor.getDouble(i++));
+                        // TODO Need to test this part thoroughly
+                        Currency currency = realm.where(Currency.class).equalTo("orderNumber", i).findFirst();
+                        if (null != currency) {
+                            cv.setCurrency(currency);
+                            realm.executeTransaction(new Realm.Transaction() {
+                                @Override
+                                public void execute(Realm realm) {
+                                    try {
+                                        realm.copyToRealmOrUpdate(cv);
+                                    } catch (Exception e) {
+                                        Log.e(TAG, "Error writing currency value " + cv + " to realm", e);
+                                        throw e;
+                                    }
+                                }
+                            });
+                            currentBalances.add(cv);
+                        }
+                    }
+                    account.setCurrentBalances(currentBalances);
+                }
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Error migrating the leger group table", ex);
+            throw new MigrationException("Error migrating the leger group table", ex);
+        } finally {
+            if (ledgerCursor != null) {
+                ledgerCursor.close();
+            }
+        }
+    }
+
+    private void migrateLedgerPriceList(SQLiteDatabase sqLiteDatabase, Account account) throws MigrationException{
+        Cursor ledgerCursor = null;
+        try {
+            Realm realm = getRealm();
+            ledgerCursor = sqLiteDatabase.rawQuery("SELECT Id, ItemID, PriceCurrency1, PriceCurrency2, PriceCurrency3, ExtraChargerate1, ExtraChargerate2, ExtraChargerate3, IsDirty, IsDeleted FROM LedgerPriceList where LedgerID = " + account.getId(), null);
+            if (null != ledgerCursor) {
+                RealmList<ProductSubscription> productSubscriptions = new RealmList<>();
+                while (ledgerCursor.moveToNext()) {
+                    int i = 0;
+                    final ProductSubscription productSubscription = new ProductSubscription();
+                    productSubscription.setId(ledgerCursor.getInt(i++));
+                    productSubscription.setProduct(realm.where(Product.class).equalTo("id", ledgerCursor.getInt(i++)).findFirst());
+                    RealmList<CurrencyValue> rates = new RealmList<>();
+                    for (int j = 1; j < 4; j++) {
+                        final CurrencyValue cv = new CurrencyValue();
+                        cv.setValue(ledgerCursor.getDouble(i++));
+                        // TODO Need to test this part thoroughly
+                        Currency currency = realm.where(Currency.class).equalTo("orderNumber", i).findFirst();
+                        if (null != currency) {
+                            cv.setCurrency(currency);
+                            realm.executeTransaction(new Realm.Transaction() {
+                                @Override
+                                public void execute(Realm realm) {
+                                    try {
+                                        realm.copyToRealmOrUpdate(cv);
+                                    } catch (Exception e) {
+                                        Log.e(TAG, "Error writing currency value " + cv + " to realm", e);
+                                        throw e;
+                                    }
+                                }
+                            });
+                            rates.add(cv);
+                        }
+                    }
+                    productSubscription.setRates(rates);
+
+                    RealmList<CurrencyValue> extraRates = new RealmList<>();
+                    for (int j = 1; j < 4; j++) {
+                        final CurrencyValue cv = new CurrencyValue();
+                        cv.setValue(ledgerCursor.getDouble(i++));
+                        // TODO Need to test this part thoroughly
+                        Currency currency = realm.where(Currency.class).equalTo("orderNumber", i).findFirst();
+                        if (null != currency) {
+                            cv.setCurrency(currency);
+                            realm.executeTransaction(new Realm.Transaction() {
+                                @Override
+                                public void execute(Realm realm) {
+                                    try {
+                                        realm.copyToRealmOrUpdate(cv);
+                                    } catch (Exception e) {
+                                        Log.e(TAG, "Error writing currency value " + cv + " to realm", e);
+                                        throw e;
+                                    }
+                                }
+                            });
+                            extraRates.add(cv);
+                        }
+                        productSubscription.setExtraRates(extraRates);
+                    }
+                    productSubscription.setCreatedDate(new Date());
+                    productSubscription.setCreatedBy(getDeviceId());
+                    realm.executeTransaction(new Realm.Transaction() {
+                        @Override
+                        public void execute(Realm realm) {
+                            try {
+                                realm.copyToRealmOrUpdate(productSubscription);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error writing product subscription " + productSubscription + " to realm", e);
+                                throw e;
+                            }
+                        }
+                    });
+                    productSubscriptions.add(productSubscription);
+                }
+                account.setProductSubscriptions(productSubscriptions);
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Error migrating the ledger price list table", ex);
+            throw new MigrationException("Error migrating the ledger price list table", ex);
+        } finally {
+            if (ledgerCursor != null) {
+                ledgerCursor.close();
+            }
+        }
+    }
+
+
+
+    private void migrateVoucherData(SQLiteDatabase sqLiteDatabase) {
+
+    }
+
+    private Realm getRealm() {
+        return Realm.getInstance(new RealmConfiguration.Builder().name("somerealm5").build());
+    }
 }

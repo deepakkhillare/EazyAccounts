@@ -28,7 +28,7 @@ public class EazyAccountsApp extends Application {
 //                                .withDefaultEncryptionKey(encryption.getBytes())
 //                                .withFolder(new File(Environment.getExternalStorageDirectory()+"/softkoashdb/"))
 //                                .withMetaTables()
-//                                .databaseNamePattern(Pattern.compile(".+\\.realm"))
+                                .databaseNamePattern(Pattern.compile(".+\\.realm"))
                                 .build())
                         .build());
     }
