@@ -191,4 +191,28 @@ public class Account extends RealmObject {
     public void setGroup(AccountGroup group) {
         this.group = group;
     }
+
+    @Override
+    public String toString() {
+        return "Account{" +
+                "id=" + id +
+                ", isCompanyAccount=" + isCompanyAccount +
+                ", name='" + name + '\'' +
+                ", group=" + group +
+                ", displayName='" + displayName + '\'' +
+                ", contact=" + contact +
+                ", vatNumber='" + vatNumber + '\'' +
+                ", panNumber='" + panNumber + '\'' +
+                ", openingBalances=" + openingBalances +
+                ", currentBalances=" + currentBalances +
+                ", creditInfo=" + creditInfo +
+                ", productSubscriptions=" + productSubscriptions +
+                ", isDirty=" + isDirty +
+                ", isDeleted=" + isDeleted +
+                ", createdDate=" + createdDate +
+                ", updatedDate=" + updatedDate +
+                ", createdBy='" + createdBy + '\'' +
+                ", updatedBy='" + updatedBy + '\'' +
+                '}';
+    }
 }

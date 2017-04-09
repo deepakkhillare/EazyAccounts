@@ -74,4 +74,17 @@ public class Contact extends RealmObject{
     public void setPrimaryMobile(String primaryMobile) {
         this.primaryMobile = primaryMobile;
     }
+
+    @Override
+    public String toString() {
+        return "Contact{" +
+                "id=" + id +
+                ", address='" + address + '\'' +
+                ", locality='" + locality + '\'' +
+                ", city='" + city + '\'' +
+                ", phone='" + phone + '\'' +
+                ", email='" + email + '\'' +
+                ", primaryMobile='" + primaryMobile + '\'' +
+                '}';
+    }
 }

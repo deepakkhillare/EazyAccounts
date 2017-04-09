@@ -1,30 +1,34 @@
 package com.softkoash.eazyaccounts.model;
 
 import java.util.Date;
+import java.util.List;
 
-import io.realm.Realm;
+import io.realm.RealmList;
 import io.realm.RealmObject;
-import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-public class Unit extends RealmObject {
+public class VoucherEntry extends RealmObject {
     @PrimaryKey
     private Integer id;
-    @Required
-    @Index
-    private String code;
-    @Required
-    @Index
-    private String name;
-    @Required
-    private Integer decimalScale;
+
+    private Account account;
+
+    private RealmList<CurrencyValue> amount;
+
+    private String type;
+
     private Boolean isDirty;
+
     private Boolean isDeleted;
+
     @Required
     private Date createdDate;
+
     private Date updatedDate;
+
     private String createdBy;
+
     private String updatedBy;
 
     public Integer getId() {
@@ -35,31 +39,31 @@ public class Unit extends RealmObject {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public Account getAccount() {
+        return account;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setAccount(Account account) {
+        this.account = account;
     }
 
-    public String getCode() {
-        return code;
+    public RealmList<CurrencyValue> getAmount() {
+        return amount;
     }
 
-    public void setCode(String code) {
-        this.code = code;
+    public void setAmount(RealmList<CurrencyValue> amount) {
+        this.amount = amount;
     }
 
-    public Integer getDecimalScale() {
-        return decimalScale;
+    public String getType() {
+        return type;
     }
 
-    public void setDecimalScale(Integer decimalScale) {
-        this.decimalScale = decimalScale;
+    public void setType(String type) {
+        this.type = type;
     }
 
-    public Boolean isDirty() {
+    public Boolean getDirty() {
         return isDirty;
     }
 
@@ -67,7 +71,7 @@ public class Unit extends RealmObject {
         isDirty = dirty;
     }
 
-    public Boolean isDeleted() {
+    public Boolean getDeleted() {
         return isDeleted;
     }
 
@@ -109,11 +113,11 @@ public class Unit extends RealmObject {
 
     @Override
     public String toString() {
-        return "Unit{" +
+        return "VoucherEntry{" +
                 "id=" + id +
-                ", code='" + code + '\'' +
-                ", name='" + name + '\'' +
-                ", decimalScale=" + decimalScale +
+                ", account=" + account +
+                ", amount=" + amount +
+                ", type='" + type + '\'' +
                 ", isDirty=" + isDirty +
                 ", isDeleted=" + isDeleted +
                 ", createdDate=" + createdDate +
@@ -123,3 +127,4 @@ public class Unit extends RealmObject {
                 '}';
     }
 }
+

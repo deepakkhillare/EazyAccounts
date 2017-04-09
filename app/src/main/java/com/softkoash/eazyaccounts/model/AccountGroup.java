@@ -99,4 +99,19 @@ public class AccountGroup extends RealmObject {
     public void setUpdatedBy(String updatedBy) {
         this.updatedBy = updatedBy;
     }
+
+    @Override
+    public String toString() {
+        return "AccountGroup{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", description='" + description + '\'' +
+                ", isDirty=" + isDirty +
+                ", isDeleted=" + isDeleted +
+                ", createdDate=" + createdDate +
+                ", createdBy='" + createdBy + '\'' +
+                ", updatedDate=" + updatedDate +
+                ", updatedBy='" + updatedBy + '\'' +
+                '}';
+    }
 }

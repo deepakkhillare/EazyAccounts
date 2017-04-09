@@ -46,4 +46,14 @@ public class CreditInfo extends RealmObject {
     public void setCreditLimit2(Double creditLimit2) {
         this.creditLimit2 = creditLimit2;
     }
+
+    @Override
+    public String toString() {
+        return "CreditInfo{" +
+                "id=" + id +
+                ", periodInDays=" + periodInDays +
+                ", creditLimit1=" + creditLimit1 +
+                ", creditLimit2=" + creditLimit2 +
+                '}';
+    }
 }

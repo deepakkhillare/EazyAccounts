@@ -181,4 +181,27 @@ public class Product extends RealmObject {
     public void setNetOpeningStock(Double netOpeningStock) {
         NetOpeningStock = netOpeningStock;
     }
+
+    @Override
+    public String toString() {
+        return "Product{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", unit=" + unit +
+                ", priceList=" + priceList +
+                ", extraChargeRateList=" + extraChargeRateList +
+                ", remarks='" + remarks + '\'' +
+                ", isDirty=" + isDirty +
+                ", isDeleted=" + isDeleted +
+                ", productGroup=" + productGroup +
+                ", grossQuantity=" + grossQuantity +
+                ", netQuantity=" + netQuantity +
+                ", grossOpeningStock=" + grossOpeningStock +
+                ", NetOpeningStock=" + NetOpeningStock +
+                ", createdDate=" + createdDate +
+                ", createdBy='" + createdBy + '\'' +
+                ", updatedDate=" + updatedDate +
+                ", updatedBy='" + updatedBy + '\'' +
+                '}';
+    }
 }

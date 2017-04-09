@@ -8,18 +8,23 @@ import io.realm.RealmObject;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-/**
- * Created by Deepak on 4/9/2017.
- */
-public class ProductSubscription extends RealmObject {
+public class VoucherItem extends RealmObject {
     @PrimaryKey
     private Integer id;
 
     private Product product;
 
+    private Double quantity;
+
+    private Double lessQuantity;
+
     private RealmList<CurrencyValue> rates;
 
-    private RealmList<CurrencyValue> extraRates;
+    private Double extraChargeQuantity;
+
+    private RealmList<CurrencyValue> extraCharges;
+
+    private RealmList<CurrencyValue> totals;
 
     private Boolean isDirty;
 
@@ -50,7 +55,31 @@ public class ProductSubscription extends RealmObject {
         this.product = product;
     }
 
-    public List<CurrencyValue> getRates() {
+    public Double getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(Double quantity) {
+        this.quantity = quantity;
+    }
+
+    public Double getLessQuantity() {
+        return lessQuantity;
+    }
+
+    public void setLessQuantity(Double lessQuantity) {
+        this.lessQuantity = lessQuantity;
+    }
+
+    public Double getExtraChargeQuantity() {
+        return extraChargeQuantity;
+    }
+
+    public void setExtraChargeQuantity(Double extraChargeQuantity) {
+        this.extraChargeQuantity = extraChargeQuantity;
+    }
+
+    public RealmList<CurrencyValue> getRates() {
         return rates;
     }
 
@@ -58,12 +87,20 @@ public class ProductSubscription extends RealmObject {
         this.rates = rates;
     }
 
-    public List<CurrencyValue> getExtraRates() {
-        return extraRates;
+    public RealmList<CurrencyValue> getExtraCharges() {
+        return extraCharges;
     }
 
-    public void setExtraRates(RealmList<CurrencyValue> extraRates) {
-        this.extraRates = extraRates;
+    public void setExtraCharges(RealmList<CurrencyValue> extraCharges) {
+        this.extraCharges = extraCharges;
+    }
+
+    public RealmList<CurrencyValue> getTotals() {
+        return totals;
+    }
+
+    public void setTotals(RealmList<CurrencyValue> totals) {
+        this.totals = totals;
     }
 
     public Boolean getDirty() {
@@ -116,11 +153,15 @@ public class ProductSubscription extends RealmObject {
 
     @Override
     public String toString() {
-        return "ProductSubscription{" +
+        return "VoucherItem{" +
                 "id=" + id +
                 ", product=" + product +
+                ", quantity=" + quantity +
+                ", lessQuantity=" + lessQuantity +
                 ", rates=" + rates +
-                ", extraRates=" + extraRates +
+                ", extraChargeQuantity=" + extraChargeQuantity +
+                ", extraCharges=" + extraCharges +
+                ", totals=" + totals +
                 ", isDirty=" + isDirty +
                 ", isDeleted=" + isDeleted +
                 ", createdDate=" + createdDate +

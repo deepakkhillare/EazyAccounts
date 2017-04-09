@@ -4,7 +4,6 @@ import android.app.IntentService;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.os.Build;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
@@ -22,16 +21,17 @@ import com.softkoash.eazyaccounts.model.Product;
 import com.softkoash.eazyaccounts.model.ProductGroup;
 import com.softkoash.eazyaccounts.model.ProductSubscription;
 import com.softkoash.eazyaccounts.model.Unit;
+import com.softkoash.eazyaccounts.model.Voucher;
+import com.softkoash.eazyaccounts.model.VoucherEntry;
+import com.softkoash.eazyaccounts.model.VoucherItem;
 import com.softkoash.eazyaccounts.util.RealmUtil;
 import com.softkoash.eazyaccounts.util.SystemUtil;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import io.realm.Realm;
@@ -42,7 +42,8 @@ import io.realm.RealmResults;
 public class MigrationService extends IntentService {
     private static final String TAG = MigrationService.class.getSimpleName();
 
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:SS");
+    private static final SimpleDateFormat LONG_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:SS");
+    private static final SimpleDateFormat SHORT_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private String dbFilePath;
     private final int workProgressPercentage = 100;
     private final MigrationStats migrationStats = new MigrationStats();
@@ -75,6 +76,7 @@ public class MigrationService extends IntentService {
                 migrateCurrencyData(existingDb);
                 migrateItemData(existingDb);
                 migrateLedgerData(existingDb);
+                migrateVoucherData(existingDb);
             } catch(MigrationException me){
                 Log.e(TAG, "Failed to migrate data", me);
             } finally {
@@ -314,7 +316,7 @@ public class MigrationService extends IntentService {
                     configuration.setDeleted((configurationCursor.getInt(i++) == 1 ? true : false));
                     String modifiedTimeStr = configurationCursor.getString(i++);
                     if (modifiedTimeStr != null && !modifiedTimeStr.isEmpty()) {
-                        Date modifiedTime = DATE_FORMAT.parse(modifiedTimeStr);
+                        Date modifiedTime = LONG_DATE_FORMAT.parse(modifiedTimeStr);
                         configuration.setUpdateDate(modifiedTime);
                     }
                     configuration.setCreatedDate(new Date());
@@ -386,7 +388,7 @@ public class MigrationService extends IntentService {
                             @Override
                             public void execute(Realm realm) {
                                 try {
-                                    currency.setPrimaryKey(currency.getNextPrimaryKey(realm));
+                                    currency.setId(RealmUtil.getNextPrimaryKey(realm, Currency.class));
                                     realm.copyToRealmOrUpdate(currency);
                                     migrationStats.addCurrencyCreated();
                                 } catch (Exception ex) {
@@ -766,11 +768,205 @@ public class MigrationService extends IntentService {
         }
     }
 
-    private void migrateVoucherData(SQLiteDatabase sqLiteDatabase) {
+    private RealmList<CurrencyValue> buildCurrencyValueList(Realm realm, Double... values) {
+        RealmList<CurrencyValue> currencyValues = new RealmList<>();
+        for (int j = 1; j <= 3; j++) {
+            if (null == values[j-1]) {
+                continue;
+            }
+            final CurrencyValue cv = new CurrencyValue();
+            cv.setValue(values[j-1]);
+            // TODO Need to test this part thoroughly
+            Currency currency = realm.where(Currency.class).equalTo("orderNumber", j).findFirst();
+            if (null != currency) {
+                cv.setCurrency(currency);
+                realm.executeTransaction(new Realm.Transaction() {
+                    @Override
+                    public void execute(Realm realm) {
+                        try {
+                            realm.copyToRealmOrUpdate(cv);
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error writing currency value " + cv + " to realm", e);
+                            throw e;
+                        }
+                    }
+                });
+                currencyValues.add(cv);
+            }
+        }
+        return currencyValues;
+    }
 
+    private void migrateVoucherData(SQLiteDatabase sqLiteDatabase) throws MigrationException {
+        Cursor voucherCursor = null;
+        Realm realm = null;
+        try {
+            realm = getRealm();
+            voucherCursor = sqLiteDatabase.rawQuery("SELECT Id, Type, Date, AmountCurrency1, AmountCurrency2, AmountCurrency3" +
+                    ", Narration, PartyLedgerID, VoucherLedgerID, IsFreeze, FreezeDate, FreezeIn, IsDirty, IsDeleted " +
+                    " FROM Voucher", null);
+            if (null != voucherCursor) {
+                while (voucherCursor.moveToNext()) {
+                    int i = 0;
+                    final Voucher voucher = new Voucher();
+                    voucher.setId(voucherCursor.getInt(i++));
+                    voucher.setVoucherType(voucherCursor.getString(i++));
+                    String voucherDateStr = voucherCursor.getString(i++);
+                    if (null != voucherDateStr && !voucherDateStr.trim().isEmpty()) {
+                        voucher.setVoucherDate(SHORT_DATE_FORMAT.parse(voucherDateStr));
+                    }
+                    voucher.setAmountList(buildCurrencyValueList(realm, voucherCursor.getDouble(i++),
+                            voucherCursor.getDouble(i++), voucherCursor.getDouble(i++)));
+                    voucher.setNarration(voucherCursor.getString(i++));
+                    voucher.setPartyAccount(realm.where(Account.class).equalTo("id", voucherCursor.getInt(i++)).findFirst());
+                    voucher.setVoucherAccount(realm.where(Account.class).equalTo("id", voucherCursor.getInt(i++)).findFirst());
+                    voucher.setFreezed(voucherCursor.getInt(i++) == 1 ? true : false);
+                    String freezeDateStr = voucherCursor.getString(i++);
+                    if (null != freezeDateStr && !freezeDateStr.trim().isEmpty()) {
+                        voucher.setFreezeDate(SHORT_DATE_FORMAT.parse(freezeDateStr));
+                    }
+                    voucher.setDirty(voucherCursor.getInt(i++) == 1 ? true : false);
+                    voucher.setDeleted(voucherCursor.getInt(i++) == 1 ? true : false);
+                    voucher.setCreatedDate(new Date());
+                    voucher.setCreatedBy(SystemUtil.getDeviceId());
+                    migrateVoucherEntries(sqLiteDatabase, voucher);
+                    migrateVoucherItems(sqLiteDatabase, voucher);
+                    Log.d(TAG, "Loaded voucher: " + voucher);
+                    realm.executeTransaction(new Realm.Transaction() {
+                        @Override
+                        public void execute(Realm realm) {
+                            try {
+                                realm.copyToRealmOrUpdate(voucher);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error writing voucher " + voucher + " to realm", e);
+                                throw e;
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Error migrating the voucher table", ex);
+            throw new MigrationException("Error migrating the voucher table", ex);
+        } finally {
+            if (voucherCursor != null) {
+                voucherCursor.close();
+            }
+            if (null != realm) {
+                realm.close();
+            }
+        }
+    }
+
+    private void migrateVoucherEntries(SQLiteDatabase sqLiteDatabase, Voucher voucher) throws MigrationException {
+        Cursor voucherCursor = null;
+        Realm realm = null;
+        try {
+            realm = getRealm();
+            voucherCursor = sqLiteDatabase.rawQuery("SELECT Id, Type, LedgerID, AmountCurrency1, AmountCurrency2, AmountCurrency3" +
+                    ", IsDirty, IsDeleted FROM VoucherEntry where VoucherID = " + voucher.getId(), null);
+            if (null != voucherCursor) {
+                RealmList<VoucherEntry> voucherEntries = new RealmList<>();
+                while (voucherCursor.moveToNext()) {
+                    int i = 0;
+                    final VoucherEntry voucherEntry = new VoucherEntry();
+                    voucherEntry.setId(voucherCursor.getInt(i++));
+                    voucherEntry.setType(voucherCursor.getString(i++));
+                    voucherEntry.setAccount(realm.where(Account.class).equalTo("id", voucherCursor.getInt(i++)).findFirst());
+                    voucherEntry.setAmount(buildCurrencyValueList(realm, voucherCursor.getDouble(i++),
+                            voucherCursor.getDouble(i++), voucherCursor.getDouble(i++)));
+                    voucherEntry.setDirty(voucherCursor.getInt(i++) == 1 ? true : false);
+                    voucherEntry.setDeleted(voucherCursor.getInt(i++) == 1 ? true : false);
+                    voucherEntry.setCreatedDate(new Date());
+                    voucherEntry.setCreatedBy(SystemUtil.getDeviceId());
+                    Log.d(TAG, "Loaded voucher entry: " + voucherEntry);
+                    realm.executeTransaction(new Realm.Transaction() {
+                        @Override
+                        public void execute(Realm realm) {
+                            try {
+                                realm.copyToRealmOrUpdate(voucherEntry);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error writing voucher " + voucherEntry + " to realm", e);
+                                throw e;
+                            }
+                        }
+                    });
+                    voucherEntries.add(voucherEntry);
+                }
+                voucher.setVoucherEntries(voucherEntries);
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Error migrating the voucher entries table", ex);
+            throw new MigrationException("Error migrating the voucher entries table", ex);
+        } finally {
+            if (voucherCursor != null) {
+                voucherCursor.close();
+            }
+            if (null != realm) {
+                realm.close();
+            }
+        }
+    }
+
+    private void migrateVoucherItems(SQLiteDatabase sqLiteDatabase, Voucher voucher) throws MigrationException {
+        Cursor voucherCursor = null;
+        Realm realm = null;
+        try {
+            realm = getRealm();
+            voucherCursor = sqLiteDatabase.rawQuery("SELECT ItemID, Quantity, LessQuantity" +
+                    ", Rate1, Rate2, Rate3, ExtraChargeQuantity, ExtraChargeRate1, ExtraChargeRate2" +
+                    ", ExtraChargeRate3, Total1, Total2, Total3, IsDirty, IsDeleted" +
+                    " FROM VoucherItem where VoucherID = " + voucher.getId(), null);
+            if (null != voucherCursor) {
+                RealmList<VoucherItem> voucherItems = new RealmList<>();
+                while (voucherCursor.moveToNext()) {
+                    int i = 0;
+                    final VoucherItem voucherItem = new VoucherItem();
+                    voucherItem.setProduct(realm.where(Product.class).equalTo("id", voucherCursor.getInt(i++)).findFirst());;
+                    voucherItem.setQuantity(voucherCursor.getDouble(i++));
+                    voucherItem.setLessQuantity(voucherCursor.getDouble(i++));
+                    voucherItem.setRates(buildCurrencyValueList(realm, voucherCursor.getDouble(i++),
+                            voucherCursor.getDouble(i++), voucherCursor.getDouble(i++)));
+                    voucherItem.setExtraChargeQuantity(voucherCursor.getDouble(i++));
+                    voucherItem.setExtraCharges(buildCurrencyValueList(realm, voucherCursor.getDouble(i++),
+                            voucherCursor.getDouble(i++), voucherCursor.getDouble(i++)));
+                    voucherItem.setTotals(buildCurrencyValueList(realm, voucherCursor.getDouble(i++),
+                            voucherCursor.getDouble(i++), voucherCursor.getDouble(i++)));
+                    voucherItem.setDirty(voucherCursor.getInt(i++) == 1 ? true : false);
+                    voucherItem.setDeleted(voucherCursor.getInt(i++) == 1 ? true : false);
+                    voucherItem.setCreatedDate(new Date());
+                    voucherItem.setCreatedBy(SystemUtil.getDeviceId());
+                    Log.d(TAG, "Loaded voucher item: " + voucherItem);
+                    realm.executeTransaction(new Realm.Transaction() {
+                        @Override
+                        public void execute(Realm realm) {
+                            try {
+                                voucherItem.setId(RealmUtil.getNextPrimaryKey(realm, VoucherItem.class));
+                                realm.copyToRealmOrUpdate(voucherItem);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error writing voucher item " + voucherItem + " to realm", e);
+                                throw e;
+                            }
+                        }
+                    });
+                    voucherItems.add(voucherItem);
+                }
+                voucher.setVoucherItems(voucherItems);
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Error migrating the voucher item table", ex);
+            throw new MigrationException("Error migrating the voucher item table", ex);
+        } finally {
+            if (voucherCursor != null) {
+                voucherCursor.close();
+            }
+            if (null != realm) {
+                realm.close();
+            }
+        }
     }
 
     private Realm getRealm() {
-        return Realm.getInstance(new RealmConfiguration.Builder().name("somerealm6").build());
+        return Realm.getInstance(new RealmConfiguration.Builder().name("somerealm9").build());
     }
 }
