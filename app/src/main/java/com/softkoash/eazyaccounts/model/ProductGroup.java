@@ -2,39 +2,28 @@ package com.softkoash.eazyaccounts.model;
 
 import java.util.Date;
 
-import io.realm.RealmList;
 import io.realm.RealmObject;
 import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-public class Product extends RealmObject {
+/**
+ * Created by Nirav on 09-04-2017.
+ */
+
+public class ProductGroup extends RealmObject {
     @PrimaryKey
-    private Integer id;
+    private int id;
 
     @Required @Index
     private String name;
 
-    @Required @Index
-    private Unit unit;
-
-    @Required @Index
-    private ProductStock stock;
-
-    private RealmList<CurrencyValue> priceList;
-
-    private RealmList<CurrencyValue> extraChargeRateList;
-
-    private String remarks;
+    private String description;
 
     private boolean isDirty;
 
     private boolean isDeleted;
 
-    @Required @Index
-    private ProductGroup productGroup;
-
-    @Required
     private Date createdDate;
 
     private String createdBy;
@@ -43,11 +32,11 @@ public class Product extends RealmObject {
 
     private String updatedBy;
 
-    public Integer getId() {
+    public int getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(int id) {
         this.id = id;
     }
 
@@ -59,44 +48,12 @@ public class Product extends RealmObject {
         this.name = name;
     }
 
-    public Unit getUnit() {
-        return unit;
+    public String getDescription() {
+        return description;
     }
 
-    public void setUnit(Unit unit) {
-        this.unit = unit;
-    }
-
-    public ProductStock getStock() {
-        return stock;
-    }
-
-    public void setStock(ProductStock stock) {
-        this.stock = stock;
-    }
-
-    public RealmList<CurrencyValue> getPriceList() {
-        return priceList;
-    }
-
-    public void setPriceList(RealmList<CurrencyValue> priceList) {
-        this.priceList = priceList;
-    }
-
-    public RealmList<CurrencyValue> getExtraChargeRateList() {
-        return extraChargeRateList;
-    }
-
-    public void setExtraChargeRateList(RealmList<CurrencyValue> extraChargeRateList) {
-        this.extraChargeRateList = extraChargeRateList;
-    }
-
-    public String getRemarks() {
-        return remarks;
-    }
-
-    public void setRemarks(String remarks) {
-        this.remarks = remarks;
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public boolean isDirty() {
@@ -113,14 +70,6 @@ public class Product extends RealmObject {
 
     public void setDeleted(boolean deleted) {
         isDeleted = deleted;
-    }
-
-    public ProductGroup getProductGroup() {
-        return productGroup;
-    }
-
-    public void setProductGroup(ProductGroup productGroup) {
-        this.productGroup = productGroup;
     }
 
     public Date getCreatedDate() {
