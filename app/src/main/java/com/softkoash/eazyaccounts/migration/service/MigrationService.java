@@ -534,29 +534,8 @@ public class MigrationService extends IntentService {
                     account.setGroup(accountGroup);
                     account.setCompanyAccount(ledgerCursor.getInt(i++) == 1 ? true : false);
 
-                    RealmList<CurrencyValue> openingBalances = new RealmList<>();
-                    for (int j = 1; j < 4; j++) {
-                        final CurrencyValue cv = new CurrencyValue();
-                        cv.setValue(ledgerCursor.getDouble(i++));
-                        // TODO Need to test this part thoroughly
-                        Currency currency = realm.where(Currency.class).equalTo("orderNumber", i).findFirst();
-                        if (null != currency) {
-                            cv.setCurrency(currency);
-                            realm.executeTransaction(new Realm.Transaction() {
-                                @Override
-                                public void execute(Realm realm) {
-                                    try {
-                                        realm.copyToRealmOrUpdate(cv);
-                                    } catch (Exception e) {
-                                        Log.e(TAG, "Error writing currency value " + cv + " to realm", e);
-                                        throw e;
-                                    }
-                                }
-                            });
-                            openingBalances.add(cv);
-                        }
-                    }
-                    account.setOpeningBalances(openingBalances);
+                    account.setOpeningBalances(buildCurrencyValueList(realm, ledgerCursor.getDouble(i++),
+                            ledgerCursor.getDouble(i++), ledgerCursor.getDouble(i++)));
 
                     final Contact contact = new Contact();
                     contact.setLocality(ledgerCursor.getString(i++));
@@ -640,29 +619,8 @@ public class MigrationService extends IntentService {
                 //Only one balance for a given account
                 if (ledgerCursor.moveToNext()) {
                     int i = 0;
-                    RealmList<CurrencyValue> currentBalances = new RealmList<>();
-                    for (int j = 1; j < 4; j++) {
-                        final CurrencyValue cv = new CurrencyValue();
-                        cv.setValue(ledgerCursor.getDouble(i++));
-                        // TODO Need to test this part thoroughly
-                        Currency currency = realm.where(Currency.class).equalTo("orderNumber", i).findFirst();
-                        if (null != currency) {
-                            cv.setCurrency(currency);
-                            realm.executeTransaction(new Realm.Transaction() {
-                                @Override
-                                public void execute(Realm realm) {
-                                    try {
-                                        realm.copyToRealmOrUpdate(cv);
-                                    } catch (Exception e) {
-                                        Log.e(TAG, "Error writing currency value " + cv + " to realm", e);
-                                        throw e;
-                                    }
-                                }
-                            });
-                            currentBalances.add(cv);
-                        }
-                    }
-                    account.setCurrentBalances(currentBalances);
+                    account.setCurrentBalances(buildCurrencyValueList(realm, ledgerCursor.getDouble(i++),
+                            ledgerCursor.getDouble(i++), ledgerCursor.getDouble(i++)));
                 }
             }
         } catch (Exception ex) {
@@ -691,53 +649,10 @@ public class MigrationService extends IntentService {
                     final ProductSubscription productSubscription = new ProductSubscription();
                     productSubscription.setId(ledgerCursor.getInt(i++));
                     productSubscription.setProduct(realm.where(Product.class).equalTo("id", ledgerCursor.getInt(i++)).findFirst());
-                    RealmList<CurrencyValue> rates = new RealmList<>();
-                    for (int j = 1; j < 4; j++) {
-                        final CurrencyValue cv = new CurrencyValue();
-                        cv.setValue(ledgerCursor.getDouble(i++));
-                        // TODO Need to test this part thoroughly
-                        Currency currency = realm.where(Currency.class).equalTo("orderNumber", i).findFirst();
-                        if (null != currency) {
-                            cv.setCurrency(currency);
-                            realm.executeTransaction(new Realm.Transaction() {
-                                @Override
-                                public void execute(Realm realm) {
-                                    try {
-                                        realm.copyToRealmOrUpdate(cv);
-                                    } catch (Exception e) {
-                                        Log.e(TAG, "Error writing currency value " + cv + " to realm", e);
-                                        throw e;
-                                    }
-                                }
-                            });
-                            rates.add(cv);
-                        }
-                    }
-                    productSubscription.setRates(rates);
-
-                    RealmList<CurrencyValue> extraRates = new RealmList<>();
-                    for (int j = 1; j < 4; j++) {
-                        final CurrencyValue cv = new CurrencyValue();
-                        cv.setValue(ledgerCursor.getDouble(i++));
-                        // TODO Need to test this part thoroughly
-                        Currency currency = realm.where(Currency.class).equalTo("orderNumber", i).findFirst();
-                        if (null != currency) {
-                            cv.setCurrency(currency);
-                            realm.executeTransaction(new Realm.Transaction() {
-                                @Override
-                                public void execute(Realm realm) {
-                                    try {
-                                        realm.copyToRealmOrUpdate(cv);
-                                    } catch (Exception e) {
-                                        Log.e(TAG, "Error writing currency value " + cv + " to realm", e);
-                                        throw e;
-                                    }
-                                }
-                            });
-                            extraRates.add(cv);
-                        }
-                        productSubscription.setExtraRates(extraRates);
-                    }
+                    productSubscription.setRates(buildCurrencyValueList(realm, ledgerCursor.getDouble(i++),
+                            ledgerCursor.getDouble(i++), ledgerCursor.getDouble(i++)));
+                    productSubscription.setExtraRates(buildCurrencyValueList(realm, ledgerCursor.getDouble(i++),
+                            ledgerCursor.getDouble(i++), ledgerCursor.getDouble(i++)));
                     productSubscription.setCreatedDate(new Date());
                     productSubscription.setCreatedBy(SystemUtil.getDeviceId());
                     realm.executeTransaction(new Realm.Transaction() {
