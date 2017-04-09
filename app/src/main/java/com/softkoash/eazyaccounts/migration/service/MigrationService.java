@@ -94,8 +94,9 @@ public class MigrationService extends IntentService {
     private void insertProductData(SQLiteDatabase existingDb) throws MigrationException {
         Log.d(TAG, "Called migrate Product data...");
         Cursor productDataCursor = null;
+        Realm realm = null;
         try {
-            Realm realm = getRealm();
+            realm = getRealm();
             StringBuilder sql = new StringBuilder();
             sql.append(" select Id, Name, Remark, ");
             sql.append(" PriceCurrency1, PriceCurrency2, PriceCurrency3, Unit,");
@@ -181,15 +182,23 @@ public class MigrationService extends IntentService {
         } catch (Exception ex) {
             Log.e(TAG, "Error migrating the Product table", ex);
             throw new MigrationException("Error migrating the ProductGroup table", ex);
+        } finally {
+            if (null != productDataCursor) {
+                productDataCursor.close();
+            }
+            if (null != realm) {
+                realm.close();
+            }
         }
     }
 
     private void insertProductGroupData(SQLiteDatabase existingDb) throws MigrationException {
         Log.d(TAG, "Called inserting ProductGroup data...");
         Cursor productGroupCursor = null;
+        Realm realm = null;
         try {
             String sql = "select Id, Name, Remark, IsDirty, IsDeleted from Item where Item.IsGroup = 1 Order by Id";
-            Realm realm = getRealm();
+            realm = getRealm();
             productGroupCursor = existingDb.rawQuery(sql, null);
             if( null != productGroupCursor) {
                 while(productGroupCursor.moveToNext()) {
@@ -222,8 +231,11 @@ public class MigrationService extends IntentService {
             Log.e(TAG, "Error migrating the ProductGroup table", ex);
             throw new MigrationException("Error migrating the ProductGroup table", ex);
         } finally {
-            if(productGroupCursor != null) {
+            if (productGroupCursor != null) {
                 productGroupCursor.close();
+            }
+            if (null != realm) {
+                realm.close();
             }
         }
     }
@@ -232,8 +244,9 @@ public class MigrationService extends IntentService {
         Log.d(TAG, "Called migrate company data...");
         Cursor companiesCursor = null;
         Company rvCompany = null;
+        Realm realm = null;
         try {
-            Realm realm = getRealm();
+            realm = getRealm();
             companiesCursor = existingDb.rawQuery("SELECT Id, CompanyName, Version, IsDirty, IsDeleted FROM COMPANYINFO", null);
             if (null != companiesCursor) {
                 //NB: there will be only one company in existing sqlite database...
@@ -272,6 +285,9 @@ public class MigrationService extends IntentService {
             if (companiesCursor != null) {
                 companiesCursor.close();
             }
+            if (null != realm) {
+                realm.close();
+            }
         }
         return rvCompany;
     }
@@ -279,8 +295,9 @@ public class MigrationService extends IntentService {
     private void migrateConfigurationData(SQLiteDatabase existingDb) throws MigrationException {
         Log.d(TAG, "Called migrate configuration data...");
         Cursor configurationCursor = null;
+        Realm realm = null;
         try {
-            Realm realm = getRealm();
+            realm = getRealm();
             Log.d(TAG, "Realm file path:" + realm.getPath());
             String rawQuery = "select ConfigurationID, Name, Category, Value, IsDirty, IsDeleted, ModifiedTime from Configuration";
             configurationCursor = existingDb.rawQuery(rawQuery, null);
@@ -329,27 +346,11 @@ public class MigrationService extends IntentService {
             if (configurationCursor != null) {
                 configurationCursor.close();
             }
+            if (null != realm) {
+                realm.close();
+            }
         }
     }
-//
-//    private void populateCurrencyMap(Cursor configurationCursor, Configuration configuration) {
-//        String name = configuration.getName();
-//        String value = configuration.getValue();
-//        if (null == currencyConfigs.get(name) && !name.startsWith("S")) {
-//            Currency currency = new Currency();
-//            currency.setDirty(configuration.isDirty());
-//            currency.setDeleted(configuration.isDeleted());
-//            currency.setDecimalScale(2); //Note: We don't have unitPrecision column in Configuration table, hence set to 2 as default.
-//            currency.setCreatedDate(new Date());
-//            currency.setCreatedBy(SystemUtil.getDeviceId());
-//            currency.setOrderNumber(Integer.toString(configurationCursor.getInt(0)));
-//            currency.setName(value);
-//            currencyConfigs.put(name, currency);
-//        } else if (name.startsWith("S") && currencyConfigs.containsKey(name.replace("S", "")) && (null != currencyConfigs.get(name.replace("S", "")))) {
-//            Currency c = currencyConfigs.get(name.replace("S", ""));
-//            c.setCode(value);
-//        }
-//    }
 
     private Currency createCurrency(Configuration nameConfig, Configuration codeConfig, Configuration scaleConfig) {
         Currency currency = null;
@@ -369,8 +370,9 @@ public class MigrationService extends IntentService {
     private void migrateCurrencyData(SQLiteDatabase existingDb) throws MigrationException {
         Log.d(TAG, "Called migrate currency data...");
         Cursor currencyCursor = null;
+        Realm realm = null;
         try {
-            Realm realm = getRealm();
+            realm = getRealm();
             if (currencyConfigs.size() > 0) {
                 for (int i = 1; i < 4; i++) {
                     final Currency currency = createCurrency(currencyConfigs.get("C" + i), currencyConfigs.get("SC" + i), currencyConfigs.get("D" + i));
@@ -403,14 +405,18 @@ public class MigrationService extends IntentService {
             if (currencyCursor != null) {
                 currencyCursor.close();
             }
+            if (null != realm) {
+                realm.close();
+            }
         }
     }
 
     private void migrateUnitData(SQLiteDatabase existingDb) throws MigrationException {
         Log.d(TAG, "Called migrate unit data...");
         Cursor unitCursor = null;
+        Realm realm = null;
         try {
-            Realm realm = getRealm();
+            realm = getRealm();
             unitCursor = existingDb.rawQuery("select Id, Name, ShortName, IsDirty, IsDeleted, UnitPrecision from Unit", null);
             if (null != unitCursor) {
                 while (unitCursor.moveToNext()) {
@@ -447,13 +453,17 @@ public class MigrationService extends IntentService {
             if (unitCursor != null) {
                 unitCursor.close();
             }
+            if (null != realm) {
+                realm.close();
+            }
         }
     }
 
     private void migrateLedgerGroups(SQLiteDatabase sqLiteDatabase) throws MigrationException {
         Cursor ledgerCursor = null;
+        Realm realm = null;
         try {
-            Realm realm = getRealm();
+            realm = getRealm();
             ledgerCursor = sqLiteDatabase.rawQuery("SELECT Id, Name, IsDirty, IsDeleted FROM Ledger where IsGroup = 1", null);
             if (null != ledgerCursor) {
                 while (ledgerCursor.moveToNext()) {
@@ -487,6 +497,9 @@ public class MigrationService extends IntentService {
             if (ledgerCursor != null) {
                 ledgerCursor.close();
             }
+            if (null != realm) {
+                realm.close();
+            }
         }
     }
 
@@ -496,8 +509,9 @@ public class MigrationService extends IntentService {
         // first add the groups...
         migrateLedgerGroups(sqLiteDatabase);
         Cursor ledgerCursor = null;
+        Realm realm = null;
         try {
-            Realm realm = getRealm();
+            realm = getRealm();
             ledgerCursor = sqLiteDatabase.rawQuery("SELECT Id, Name, IsDirty, IsDeleted, Under, IsSystem" +
                     ", OpeningBalanceCurrency1, OpeningBalanceCurrency2, OpeningBalanceCurrency3 " +
                     ", Locality, Address, City, PrimaryMobileNo, CreditLimitLevel1, CreditLimitLevel2 " +
@@ -608,13 +622,17 @@ public class MigrationService extends IntentService {
             if (ledgerCursor != null) {
                 ledgerCursor.close();
             }
+            if (null != realm) {
+                realm.close();
+            }
         }
     }
 
     private void migrateLedgerBalances(SQLiteDatabase sqLiteDatabase, Account account) throws MigrationException {
         Cursor ledgerCursor = null;
+        Realm realm = null;
         try {
-            Realm realm = getRealm();
+            realm = getRealm();
             ledgerCursor = sqLiteDatabase.rawQuery("SELECT BalanceCurrency1, BalanceCurrency2, BalanceCurrency3 FROM LedgerBalance where LedgerID = " + account.getId(), null);
             if (null != ledgerCursor) {
                 //Only one balance for a given account
@@ -652,13 +670,17 @@ public class MigrationService extends IntentService {
             if (ledgerCursor != null) {
                 ledgerCursor.close();
             }
+            if (null != realm) {
+                realm.close();
+            }
         }
     }
 
     private void migrateLedgerPriceList(SQLiteDatabase sqLiteDatabase, Account account) throws MigrationException{
         Cursor ledgerCursor = null;
+        Realm realm = null;
         try {
-            Realm realm = getRealm();
+            realm = getRealm();
             ledgerCursor = sqLiteDatabase.rawQuery("SELECT Id, ItemID, PriceCurrency1, PriceCurrency2, PriceCurrency3, ExtraChargerate1, ExtraChargerate2, ExtraChargerate3, IsDirty, IsDeleted FROM LedgerPriceList where LedgerID = " + account.getId(), null);
             if (null != ledgerCursor) {
                 RealmList<ProductSubscription> productSubscriptions = new RealmList<>();
@@ -738,16 +760,17 @@ public class MigrationService extends IntentService {
             if (ledgerCursor != null) {
                 ledgerCursor.close();
             }
+            if (null != realm) {
+                realm.close();
+            }
         }
     }
-
-
 
     private void migrateVoucherData(SQLiteDatabase sqLiteDatabase) {
 
     }
 
     private Realm getRealm() {
-        return Realm.getInstance(new RealmConfiguration.Builder().name("somerealm5").build());
+        return Realm.getInstance(new RealmConfiguration.Builder().name("somerealm6").build());
     }
 }
