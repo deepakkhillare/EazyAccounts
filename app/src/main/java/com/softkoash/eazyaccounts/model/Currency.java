@@ -1,6 +1,8 @@
 package com.softkoash.eazyaccounts.model;
 
 import java.util.Date;
+import java.util.Random;
+import java.util.RandomAccess;
 
 import io.realm.Realm;
 import io.realm.RealmObject;
@@ -136,9 +138,11 @@ public class Currency extends RealmObject implements AutoIncrementable {
         Number primaryKey = realm.where(Currency.class).max("id");
         int primaryKeyIntValue;
         if (primaryKey == null) {
-            primaryKeyIntValue = 1;
+            Random r = new Random();
+            int i1 = r.nextInt(99 - 1) + 1;
+            primaryKeyIntValue = i1;
         } else {
-            primaryKeyIntValue = primaryKey.intValue() + 1;
+            primaryKeyIntValue = primaryKey.intValue() + 100;
         }
         return primaryKeyIntValue;
     }

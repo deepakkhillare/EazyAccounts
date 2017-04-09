@@ -15,11 +15,7 @@ public class Product extends RealmObject {
     @Required @Index
     private String name;
 
-    @Required @Index
     private Unit unit;
-
-    @Required @Index
-    private ProductStock stock;
 
     private RealmList<CurrencyValue> priceList;
 
@@ -31,8 +27,15 @@ public class Product extends RealmObject {
 
     private boolean isDeleted;
 
-    @Required @Index
     private ProductGroup productGroup;
+
+    private Double grossQuantity;
+
+    private Double netQuantity;
+
+    private Double grossOpeningStock;
+
+    private Double NetOpeningStock;
 
     @Required
     private Date createdDate;
@@ -65,14 +68,6 @@ public class Product extends RealmObject {
 
     public void setUnit(Unit unit) {
         this.unit = unit;
-    }
-
-    public ProductStock getStock() {
-        return stock;
-    }
-
-    public void setStock(ProductStock stock) {
-        this.stock = stock;
     }
 
     public RealmList<CurrencyValue> getPriceList() {
@@ -153,5 +148,37 @@ public class Product extends RealmObject {
 
     public void setUpdatedBy(String updatedBy) {
         this.updatedBy = updatedBy;
+    }
+
+    public Double getGrossQuantity() {
+        return grossQuantity;
+    }
+
+    public void setGrossQuantity(Double grossQuantity) {
+        this.grossQuantity = grossQuantity;
+    }
+
+    public Double getNetQuantity() {
+        return netQuantity;
+    }
+
+    public void setNetQuantity(Double netQuantity) {
+        this.netQuantity = netQuantity;
+    }
+
+    public Double getGrossOpeningStock() {
+        return grossOpeningStock;
+    }
+
+    public void setGrossOpeningStock(Double grossOpeningStock) {
+        this.grossOpeningStock = grossOpeningStock;
+    }
+
+    public Double getNetOpeningStock() {
+        return NetOpeningStock;
+    }
+
+    public void setNetOpeningStock(Double netOpeningStock) {
+        NetOpeningStock = netOpeningStock;
     }
 }

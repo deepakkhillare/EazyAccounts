@@ -10,6 +10,16 @@ public class MigrationStats {
     private int configurationCreated;
     private int currencyCreated;
     private int unitCreated;
+    private int productGroupCreated;
+    private int productCreated;
+
+    public int getProductGroupCreated() {
+        return productGroupCreated;
+    }
+
+    public void setProductGroupCreated(int productGroupCreated) {
+        this.productGroupCreated = productGroupCreated;
+    }
 
     public int getCurrencyCreated() {
         return currencyCreated;
@@ -58,6 +68,15 @@ public class MigrationStats {
     public void addUnitCreated() {
         this.unitCreated++;
     }
+
+    public  void addProductGroupCreated() {
+        this.productGroupCreated++;
+    }
+
+    public void addProductCreated() {
+        this.productCreated++;
+    }
+
     public int getLedgersCreated() {
         return ledgersCreated;
     }

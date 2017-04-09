@@ -13,15 +13,21 @@ import com.softkoash.eazyaccounts.migration.MigrationStats;
 import com.softkoash.eazyaccounts.model.Company;
 import com.softkoash.eazyaccounts.model.Configuration;
 import com.softkoash.eazyaccounts.model.Currency;
+import com.softkoash.eazyaccounts.model.CurrencyValue;
+import com.softkoash.eazyaccounts.model.Product;
+import com.softkoash.eazyaccounts.model.ProductGroup;
 import com.softkoash.eazyaccounts.model.Unit;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import io.realm.Realm;
+import io.realm.RealmList;
+import io.realm.RealmResults;
 
 public class MigrationService extends IntentService {
     private static final String TAG = MigrationService.class.getSimpleName();
@@ -57,12 +63,156 @@ public class MigrationService extends IntentService {
                 migrateConfigurationData(existingDb);
                 migrateUnitData(existingDb);
                 migrateCurrencyData(existingDb);
+                migrateItemData(existingDb);
             } catch(MigrationException me){
                 Log.e(TAG, "Failed to migrate data", me);
             } finally {
                 if (existingDb != null) {
                     existingDb.close();
                 }
+            }
+        }
+    }
+
+    private void migrateItemData(SQLiteDatabase existingDb) throws MigrationException {
+        Log.d(TAG, "Called migrate Item data...");
+        insertProductGroupData(existingDb);
+        insertProductData(existingDb);
+    }
+
+    private void insertProductData(SQLiteDatabase existingDb) throws MigrationException {
+        Log.d(TAG, "Called migrate Product data...");
+        Cursor productDataCursor = null;
+        try {
+            Realm realm = Realm.getDefaultInstance();
+            StringBuilder sql = new StringBuilder();
+            sql.append(" select Id, Name, Remark, ");
+            sql.append(" PriceCurrency1, PriceCurrency2, PriceCurrency3, Unit,");
+            sql.append(" ExtraChargerate1, ExtraChargerate2, ExtraChargerate3, Under,");
+            sql.append(" IsDirty, IsDeleted, GrossQuantity, NettQuantity, GrossOpeningStock, NettOpeningStock ");
+            sql.append(" from Item where Item.IsGroup = 0 order by Item.Id");
+            productDataCursor = existingDb.rawQuery(sql.toString(), null);
+            if(null != productDataCursor) {
+                while (productDataCursor.moveToNext()) {
+                    final Product product = new Product();
+                    final RealmList<CurrencyValue> currencyValueList = new RealmList<>();
+                    final RealmList<CurrencyValue> extraChargeList = new RealmList<>();
+
+                    //Find Product Group
+                    int searchProductGroupId = productDataCursor.getInt(10);
+                    RealmResults<ProductGroup> productGroupResult = realm.where(ProductGroup.class).equalTo("id", searchProductGroupId).findAll();
+                    ProductGroup prodGroup = productGroupResult.first();
+
+                    //Find Unit
+                    String searchUnitData = productDataCursor.getString(6);
+                    RealmResults<Unit> unitRealmResult = realm.where(Unit.class).equalTo("name",searchUnitData).findAll();
+                    Unit unit = unitRealmResult.first();
+
+                    //Find Currency to link priceList and extraChargeList
+                    RealmResults<Currency>  currencies = realm.where(Currency.class).findAllSorted("id");
+                    Iterator<Currency> currencyIterator = currencies.listIterator();
+                    for(int i = 1 ; currencyIterator.hasNext(); i++) {
+                        Currency currency = currencyIterator.next();
+                        CurrencyValue currencyValue = new CurrencyValue();
+                        CurrencyValue extraChargeCurrency = new CurrencyValue();
+                        extraChargeCurrency.setCurrency(currency);
+                        currencyValue.setCurrency(currency);
+                        switch (i) {
+                            case 1 :
+                                currencyValue.setValue(productDataCursor.getDouble(3));
+                                extraChargeCurrency.setValue(productDataCursor.getDouble(7));
+                                break;
+                            case 2 :
+                                currencyValue.setValue(productDataCursor.getDouble(4));
+                                extraChargeCurrency.setValue(productDataCursor.getDouble(8));
+                                break;
+                            case 3 :
+                                currencyValue.setValue(productDataCursor.getDouble(5));
+                                extraChargeCurrency.setValue(productDataCursor.getDouble(9));
+                                break;
+                        }
+                        currencyValueList.add(currencyValue);
+                        extraChargeList.add(extraChargeCurrency);
+                    }
+
+                    product.setId(productDataCursor.getInt(0));
+                    product.setName(productDataCursor.getString(1));
+                    product.setPriceList(currencyValueList);
+                    product.setExtraChargeRateList(extraChargeList);
+                    product.setRemarks(productDataCursor.getString(2));
+                    product.setUnit(unit);
+                    product.setProductGroup(prodGroup);
+                    product.setDirty(productDataCursor.getInt(11) == 1? true : false);
+                    product.setDeleted(productDataCursor.getInt(12) == 1? true : false);
+                    product.setGrossQuantity(productDataCursor.getDouble(13));
+                    product.setNetQuantity(productDataCursor.getDouble(14));
+                    product.setGrossOpeningStock(productDataCursor.getDouble(15));
+                    product.setNetOpeningStock(productDataCursor.getDouble(16));
+                    product.setCreatedDate(new Date());
+                    product.setCreatedBy(getDeviceId());
+                    product.setUpdatedDate(new Date());
+                    product.setUpdatedBy(getDeviceId());
+
+                    realm.executeTransaction(new Realm.Transaction() {
+                        @Override
+                        public void execute(Realm realm) {
+                            try {
+                                realm.copyToRealmOrUpdate(product);
+                                migrationStats.addProductCreated();
+                            } catch (Exception ex) {
+                                Log.e(TAG, "Error while writing ProductGroup " + product, ex);
+                                throw ex;
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Error migrating the Product table", ex);
+            throw new MigrationException("Error migrating the ProductGroup table", ex);
+        }
+    }
+
+    private void insertProductGroupData(SQLiteDatabase existingDb) throws MigrationException {
+        Log.d(TAG, "Called inserting ProductGroup data...");
+        Cursor productGroupCursor = null;
+        try {
+            String sql = "select Id, Name, Remark, IsDirty, IsDeleted from Item where Item.IsGroup = 1 Order by Id";
+            Realm realm = Realm.getDefaultInstance();
+            productGroupCursor = existingDb.rawQuery(sql, null);
+            if( null != productGroupCursor) {
+                while(productGroupCursor.moveToNext()) {
+                    final ProductGroup productGroup = new ProductGroup();
+                    productGroup.setId(productGroupCursor.getInt(0));
+                    productGroup.setName(productGroupCursor.getString(1));
+                    productGroup.setDescription(productGroupCursor.getString(2));
+                    productGroup.setDirty(productGroupCursor.getInt(3) == 1 ? true : false);
+                    productGroup.setDeleted(productGroupCursor.getInt(4) == 1 ? true : false);
+                    productGroup.setCreatedDate(new Date());
+                    productGroup.setCreatedBy(getDeviceId());
+                    productGroup.setUpdatedDate(new Date());
+                    productGroup.setUpdatedBy(getDeviceId());
+                    Log.d(TAG, "Loaded ProductGroup : " + productGroup);
+                    realm.executeTransaction(new Realm.Transaction() {
+                        @Override
+                        public void execute(Realm realm) {
+                            try {
+                                realm.copyToRealmOrUpdate(productGroup);
+                                migrationStats.addProductGroupCreated();
+                            } catch (Exception ex) {
+                                Log.e(TAG, "Error while writing ProductGroup " + productGroup, ex);
+                                throw ex;
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Error migrating the ProductGroup table", ex);
+            throw new MigrationException("Error migrating the ProductGroup table", ex);
+        } finally {
+            if(productGroupCursor != null) {
+                productGroupCursor.close();
             }
         }
     }
@@ -120,6 +270,7 @@ public class MigrationService extends IntentService {
         Cursor configurationCursor = null;
         try {
             Realm realm = Realm.getDefaultInstance();
+            Log.d(TAG, "Realm file path:" + realm.getPath());
             String rawQuery = "select ConfigurationID, Name, Category, Value, IsDirty, IsDeleted, ModifiedTime from Configuration";
             configurationCursor = existingDb.rawQuery(rawQuery, null);
             if (null != configurationCursor) {
@@ -193,9 +344,9 @@ public class MigrationService extends IntentService {
         Currency currency = null;
         if (null != nameConfig && null != codeConfig && null != scaleConfig) {
             currency = new Currency();
-            currency.setName(nameConfig.getName());
-            currency.setCode(codeConfig.getName());
-            currency.setDecimalScale(Integer.parseInt(scaleConfig.getName()));
+            currency.setName(nameConfig.getValue()); // TODO: We should take value instead of name
+            currency.setCode(codeConfig.getValue()); // TODO: We should take value instead of name
+            currency.setDecimalScale(Integer.parseInt(scaleConfig.getValue()));
             currency.setDirty(nameConfig.isDirty());
             currency.setDeleted(nameConfig.isDeleted());
         } else {
@@ -223,7 +374,7 @@ public class MigrationService extends IntentService {
                             public void execute(Realm realm) {
                                 try {
                                     currency.setPrimaryKey(currency.getNextPrimaryKey(realm));
-                                    realm.copyToRealm(currency);
+                                    realm.copyToRealmOrUpdate(currency);
                                     migrationStats.addCurrencyCreated();
                                 } catch (Exception ex) {
                                     Log.e(TAG, "Error while writing currency " + currency, ex);
