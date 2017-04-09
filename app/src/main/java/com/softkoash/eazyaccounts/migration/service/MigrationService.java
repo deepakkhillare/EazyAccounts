@@ -22,6 +22,8 @@ import com.softkoash.eazyaccounts.model.Product;
 import com.softkoash.eazyaccounts.model.ProductGroup;
 import com.softkoash.eazyaccounts.model.ProductSubscription;
 import com.softkoash.eazyaccounts.model.Unit;
+import com.softkoash.eazyaccounts.util.RealmUtil;
+import com.softkoash.eazyaccounts.util.SystemUtil;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -158,9 +160,9 @@ public class MigrationService extends IntentService {
                     product.setGrossOpeningStock(productDataCursor.getDouble(15));
                     product.setNetOpeningStock(productDataCursor.getDouble(16));
                     product.setCreatedDate(new Date());
-                    product.setCreatedBy(getDeviceId());
+                    product.setCreatedBy(SystemUtil.getDeviceId());
                     product.setUpdatedDate(new Date());
-                    product.setUpdatedBy(getDeviceId());
+                    product.setUpdatedBy(SystemUtil.getDeviceId());
 
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -198,9 +200,9 @@ public class MigrationService extends IntentService {
                     productGroup.setDirty(productGroupCursor.getInt(3) == 1 ? true : false);
                     productGroup.setDeleted(productGroupCursor.getInt(4) == 1 ? true : false);
                     productGroup.setCreatedDate(new Date());
-                    productGroup.setCreatedBy(getDeviceId());
+                    productGroup.setCreatedBy(SystemUtil.getDeviceId());
                     productGroup.setUpdatedDate(new Date());
-                    productGroup.setUpdatedBy(getDeviceId());
+                    productGroup.setUpdatedBy(SystemUtil.getDeviceId());
                     Log.d(TAG, "Loaded ProductGroup : " + productGroup);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -246,7 +248,7 @@ public class MigrationService extends IntentService {
                     company.setDirty(companiesCursor.getInt(i++) == 1 ? true : false);
                     company.setDeleted(companiesCursor.getInt(i++) == 1 ? true : false);
                     company.setCreatedDate(new Date());
-                    company.setCreatedBy(getDeviceId());
+                    company.setCreatedBy(SystemUtil.getDeviceId());
                     Log.d(TAG, "Loaded company: " + company);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -299,7 +301,7 @@ public class MigrationService extends IntentService {
                         configuration.setUpdateDate(modifiedTime);
                     }
                     configuration.setCreatedDate(new Date());
-                    configuration.setCreatedBy(getDeviceId());
+                    configuration.setCreatedBy(SystemUtil.getDeviceId());
                     if (category.equals("Currency")) {
                         currencyConfigs.put(configuration.getName(), configuration);
                         //continue so we do not end up adding the currency config in the configuration table of realm!
@@ -339,7 +341,7 @@ public class MigrationService extends IntentService {
 //            currency.setDeleted(configuration.isDeleted());
 //            currency.setDecimalScale(2); //Note: We don't have unitPrecision column in Configuration table, hence set to 2 as default.
 //            currency.setCreatedDate(new Date());
-//            currency.setCreatedBy(getDeviceId());
+//            currency.setCreatedBy(SystemUtil.getDeviceId());
 //            currency.setOrderNumber(Integer.toString(configurationCursor.getInt(0)));
 //            currency.setName(value);
 //            currencyConfigs.put(name, currency);
@@ -376,7 +378,7 @@ public class MigrationService extends IntentService {
                         currency.setCompany(this.company);
                         currency.setOrderNumber(i);
                         currency.setCreatedDate(new Date());
-                        currency.setCreatedBy(getDeviceId());
+                        currency.setCreatedBy(SystemUtil.getDeviceId());
                         Log.d(TAG, "Loaded currency: " + currency);
                         realm.executeTransaction(new Realm.Transaction() {
                             @Override
@@ -414,7 +416,7 @@ public class MigrationService extends IntentService {
                 while (unitCursor.moveToNext()) {
                     int i = 0;
                     final Unit unit = new Unit();
-                    String deviceId = getDeviceId();
+                    String deviceId = SystemUtil.getDeviceId();
                     unit.setId(unitCursor.getInt(i++));
                     unit.setName(unitCursor.getString(i++));
                     unit.setCode(unitCursor.getString(i++));
@@ -448,33 +450,6 @@ public class MigrationService extends IntentService {
         }
     }
 
-    // TODO Should be moved to Util class...
-    public String getDeviceId() {
-        String UniqueDeviceID = convertStringToNumber(Build.SERIAL);
-        if (UniqueDeviceID.length() < 15) {
-            UniqueDeviceID += convertStringToNumber(Build.ID);
-        }
-        if (UniqueDeviceID.length() < 15) {
-            UniqueDeviceID += convertStringToNumber(Build.HARDWARE);
-        }
-        if (UniqueDeviceID.length() > 15) {
-            UniqueDeviceID = UniqueDeviceID.substring(0, 15);
-        }
-        return UniqueDeviceID;
-    }
-
-    private String convertStringToNumber(String StringToConvert) {
-        String result = "";
-        char[] buffer = StringToConvert.toCharArray();
-        for (int i = buffer.length - 1; i > -1; i--) {
-            result += (byte) buffer[i];
-        }
-        if (result.length() > 15) {
-            return result.substring(0, 15);
-        } else
-            return result;
-    }
-
     private void migrateLedgerGroups(SQLiteDatabase sqLiteDatabase) throws MigrationException {
         Cursor ledgerCursor = null;
         try {
@@ -489,7 +464,7 @@ public class MigrationService extends IntentService {
                     accountGroup.setDirty(ledgerCursor.getInt(i++) == 1 ? true : false);
                     accountGroup.setDeleted(ledgerCursor.getInt(i++) == 1 ? true : false);
                     accountGroup.setCreatedDate(new Date());
-                    accountGroup.setCreatedBy(getDeviceId());
+                    accountGroup.setCreatedBy(SystemUtil.getDeviceId());
                     Log.d(TAG, "Loaded account group: " + accountGroup);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -515,18 +490,6 @@ public class MigrationService extends IntentService {
         }
     }
 
-    private static int getNextPrimaryKey(Realm realm, Class realmClass) {
-        Number primaryKey = realm.where(realmClass).max("id");
-        int primaryKeyIntValue;
-
-        if (primaryKey == null) {
-            primaryKeyIntValue = 1;
-        } else {
-            primaryKeyIntValue = primaryKey.intValue() + 1;
-        }
-        return primaryKeyIntValue;
-    }
-
     private void migrateLedgerData(SQLiteDatabase sqLiteDatabase) throws MigrationException {
         // Ledger -> Account
         Log.d(TAG, "Called migrate ledger data...");
@@ -549,7 +512,7 @@ public class MigrationService extends IntentService {
                     account.setDirty(ledgerCursor.getInt(i++) == 1 ? true : false);
                     account.setDeleted(ledgerCursor.getInt(i++) == 1 ? true : false);
                     account.setCreatedDate(new Date());
-                    account.setCreatedBy(getDeviceId());
+                    account.setCreatedBy(SystemUtil.getDeviceId());
 
                     AccountGroup accountGroup = realm.where(AccountGroup.class).equalTo("id", ledgerCursor.getInt(i++)).findFirst();
                     account.setGroup(accountGroup);
@@ -589,7 +552,7 @@ public class MigrationService extends IntentService {
                         @Override
                         public void execute(Realm realm) {
                             try {
-                                contact.setId(getNextPrimaryKey(realm, Contact.class));
+                                contact.setId(RealmUtil.getNextPrimaryKey(realm, Contact.class));
                                 realm.copyToRealmOrUpdate(contact);
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing contact " + contact + " to realm", e);
@@ -609,7 +572,7 @@ public class MigrationService extends IntentService {
                         @Override
                         public void execute(Realm realm) {
                             try {
-                                creditInfo.setId(getNextPrimaryKey(realm, CreditInfo.class));
+                                creditInfo.setId(RealmUtil.getNextPrimaryKey(realm, CreditInfo.class));
                                 realm.copyToRealmOrUpdate(creditInfo);
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing credit info " + creditInfo + " to realm", e);
@@ -752,7 +715,7 @@ public class MigrationService extends IntentService {
                         productSubscription.setExtraRates(extraRates);
                     }
                     productSubscription.setCreatedDate(new Date());
-                    productSubscription.setCreatedBy(getDeviceId());
+                    productSubscription.setCreatedBy(SystemUtil.getDeviceId());
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
                         public void execute(Realm realm) {
