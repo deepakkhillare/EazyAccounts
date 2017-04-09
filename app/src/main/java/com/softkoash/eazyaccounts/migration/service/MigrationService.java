@@ -152,7 +152,7 @@ public class MigrationService extends IntentService {
                     product.setCreatedBy(getDeviceId());
                     product.setUpdatedDate(new Date());
                     product.setUpdatedBy(getDeviceId());
-
+                    Log.d(TAG, "Loaded Product : " + product);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
                         public void execute(Realm realm) {
