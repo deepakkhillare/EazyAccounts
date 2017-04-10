@@ -5,8 +5,15 @@ package com.softkoash.eazyaccounts.migration;
  */
 public class MigrationStats {
     private int companiesCreated;
-    private int ledgersCreated;
+    private int accountsCreated;
+    private int accountGroupsCreated;
+    private int accountBalancesCreated;
+    private int contactCreated;
+    private int creditInfoCreated;
+    private int productSubscriptionsCreated;
     private int vouchersCreated;
+    private int voucherItemsCreated;
+    private int voucherEntriesCreated;
     private int configurationCreated;
     private int currencyCreated;
     private int unitCreated;
@@ -77,16 +84,16 @@ public class MigrationStats {
         this.productCreated++;
     }
 
-    public int getLedgersCreated() {
-        return ledgersCreated;
+    public int getAccountsCreated() {
+        return accountsCreated;
     }
 
-    public void setLedgersCreated(int ledgersCreated) {
-        this.ledgersCreated = ledgersCreated;
+    public void setAccountsCreated(int accountsCreated) {
+        this.accountsCreated = accountsCreated;
     }
 
-    public void addLedgersCreated() {
-        this.ledgersCreated++;
+    public void addAccountsCreated() {
+        this.accountsCreated++;
     }
 
     public int getVouchersCreated() {
@@ -99,5 +106,119 @@ public class MigrationStats {
 
     public void addVouchersCreated() {
         this.vouchersCreated++;
+    }
+
+    public int getAccountGroupsCreated() {
+        return accountGroupsCreated;
+    }
+
+    public void setAccountGroupsCreated(int accountGroupsCreated) {
+        this.accountGroupsCreated = accountGroupsCreated;
+    }
+
+    public void addAccountGroupsCreated() {
+        this.accountGroupsCreated++;
+    }
+
+    public int getAccountBalancesCreated() {
+        return accountBalancesCreated;
+    }
+
+    public void setAccountBalancesCreated(int accountBalancesCreated) {
+        this.accountBalancesCreated = accountBalancesCreated;
+    }
+
+    public void addAccountBalancesCreated() {
+        this.accountBalancesCreated++;
+    }
+
+    public int getContactCreated() {
+        return contactCreated;
+    }
+
+    public void setContactCreated(int contactCreated) {
+        this.contactCreated = contactCreated;
+    }
+
+    public void addContactCreated() {
+        this.contactCreated++;
+    }
+
+    public int getCreditInfoCreated() {
+        return creditInfoCreated;
+    }
+
+    public void setCreditInfoCreated(int creditInfoCreated) {
+        this.creditInfoCreated = creditInfoCreated;
+    }
+
+    public void addCreditInfoCreated() {
+        this.creditInfoCreated++;
+    }
+
+    public int getProductSubscriptionsCreated() {
+        return productSubscriptionsCreated;
+    }
+
+    public void setProductSubscriptionsCreated(int productSubscriptionsCreated) {
+        this.productSubscriptionsCreated = productSubscriptionsCreated;
+    }
+
+    public void addProductSubscriptionsCreated() {
+        this.productSubscriptionsCreated++;
+    }
+
+    public int getVoucherItemsCreated() {
+        return voucherItemsCreated;
+    }
+
+    public void setVoucherItemsCreated(int voucherItemsCreated) {
+        this.voucherItemsCreated = voucherItemsCreated;
+    }
+
+    public void addVoucherItemsCreated() {
+        this.voucherItemsCreated++;
+    }
+
+    public int getVoucherEntriesCreated() {
+        return voucherEntriesCreated;
+    }
+
+    public void setVoucherEntriesCreated(int voucherEntriesCreated) {
+        this.voucherEntriesCreated = voucherEntriesCreated;
+    }
+
+    public void addVoucherEntriesCreated() {
+        this.voucherEntriesCreated++;
+    }
+
+    public int getProductCreated() {
+        return productCreated;
+    }
+
+    public void setProductCreated(int productCreated) {
+        this.productCreated = productCreated;
+    }
+
+
+    @Override
+    public String toString() {
+        return "MigrationStats{" +
+                "companiesCreated=" + companiesCreated +
+                ", accountsCreated=" + accountsCreated +
+                ", accountGroupsCreated=" + accountGroupsCreated +
+                ", accountBalancesCreated=" + accountBalancesCreated +
+                ", contactCreated=" + contactCreated +
+                ", creditInfoCreated=" + creditInfoCreated +
+                ", productSubscriptionsCreated=" + productSubscriptionsCreated +
+                ", vouchersCreated=" + vouchersCreated +
+                ", voucherItemsCreated=" + voucherItemsCreated +
+                ", voucherEntriesCreated=" + voucherEntriesCreated +
+                ", configurationCreated=" + configurationCreated +
+                ", currencyCreated=" + currencyCreated +
+                ", unitCreated=" + unitCreated +
+                ", productGroupCreated=" + productGroupCreated +
+                ", productCreated=" + productCreated +
+                '}';
     }
 }

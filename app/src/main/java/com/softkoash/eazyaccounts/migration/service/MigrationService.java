@@ -31,7 +31,6 @@ import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import io.realm.Realm;
@@ -59,6 +58,7 @@ public class MigrationService extends IntentService {
         dbFilePath = intent.getStringExtra("DB_FILE_PATH");
         if (dbFilePath != null && !dbFilePath.isEmpty()) {
             executeDBMigration();
+            Log.i(TAG, "Migration completed successfully: " + migrationStats);
         } else {
             Log.e(TAG, "No SQLite file provided to migration service!!!");
         }
@@ -112,50 +112,26 @@ public class MigrationService extends IntentService {
                     final RealmList<CurrencyValue> currencyValueList = new RealmList<>();
                     final RealmList<CurrencyValue> extraChargeList = new RealmList<>();
 
-                    //Find Product Group
-                    int searchProductGroupId = productDataCursor.getInt(10);
-                    RealmResults<ProductGroup> productGroupResult = realm.where(ProductGroup.class).equalTo("id", searchProductGroupId).findAll();
-                    ProductGroup prodGroup = productGroupResult.first();
+                    product.setId(productDataCursor.getInt(0));
+                    product.setName(productDataCursor.getString(1));
+                    product.setRemarks(productDataCursor.getString(2));
+
+                    product.setPriceList(buildCurrencyValueList(realm, productDataCursor.getDouble(3), productDataCursor.getDouble(4), productDataCursor.getDouble(5)));
 
                     //Find Unit
                     String searchUnitData = productDataCursor.getString(6);
                     RealmResults<Unit> unitRealmResult = realm.where(Unit.class).equalTo("name",searchUnitData).findAll();
                     Unit unit = unitRealmResult.first();
-
-                    //Find Currency to link priceList and extraChargeList
-                    RealmResults<Currency>  currencies = realm.where(Currency.class).findAllSorted("id");
-                    Iterator<Currency> currencyIterator = currencies.listIterator();
-                    for(int i = 1 ; currencyIterator.hasNext(); i++) {
-                        Currency currency = currencyIterator.next();
-                        CurrencyValue currencyValue = new CurrencyValue();
-                        CurrencyValue extraChargeCurrency = new CurrencyValue();
-                        extraChargeCurrency.setCurrency(currency);
-                        currencyValue.setCurrency(currency);
-                        switch (i) {
-                            case 1 :
-                                currencyValue.setValue(productDataCursor.getDouble(3));
-                                extraChargeCurrency.setValue(productDataCursor.getDouble(7));
-                                break;
-                            case 2 :
-                                currencyValue.setValue(productDataCursor.getDouble(4));
-                                extraChargeCurrency.setValue(productDataCursor.getDouble(8));
-                                break;
-                            case 3 :
-                                currencyValue.setValue(productDataCursor.getDouble(5));
-                                extraChargeCurrency.setValue(productDataCursor.getDouble(9));
-                                break;
-                        }
-                        currencyValueList.add(currencyValue);
-                        extraChargeList.add(extraChargeCurrency);
-                    }
-
-                    product.setId(productDataCursor.getInt(0));
-                    product.setName(productDataCursor.getString(1));
-                    product.setPriceList(currencyValueList);
-                    product.setExtraChargeRateList(extraChargeList);
-                    product.setRemarks(productDataCursor.getString(2));
                     product.setUnit(unit);
+
+                    product.setExtraChargeRateList(buildCurrencyValueList(realm, productDataCursor.getDouble(7), productDataCursor.getDouble(8), productDataCursor.getDouble(9)));
+
+                    //Find Product Group
+                    int searchProductGroupId = productDataCursor.getInt(10);
+                    RealmResults<ProductGroup> productGroupResult = realm.where(ProductGroup.class).equalTo("id", searchProductGroupId).findAll();
+                    ProductGroup prodGroup = productGroupResult.first();
                     product.setProductGroup(prodGroup);
+
                     product.setDirty(productDataCursor.getInt(11) == 1? true : false);
                     product.setDeleted(productDataCursor.getInt(12) == 1? true : false);
                     product.setGrossQuantity(productDataCursor.getDouble(13));
@@ -483,7 +459,7 @@ public class MigrationService extends IntentService {
                         public void execute(Realm realm) {
                             try {
                                 realm.copyToRealmOrUpdate(accountGroup);
-                                migrationStats.addLedgersCreated();
+                                migrationStats.addAccountGroupsCreated();
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing account group " + accountGroup + " to realm", e);
                                 throw e;
@@ -549,6 +525,7 @@ public class MigrationService extends IntentService {
                             try {
                                 contact.setId(RealmUtil.getNextPrimaryKey(realm, Contact.class));
                                 realm.copyToRealmOrUpdate(contact);
+                                migrationStats.addContactCreated();
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing contact " + contact + " to realm", e);
                                 throw e;
@@ -569,6 +546,7 @@ public class MigrationService extends IntentService {
                             try {
                                 creditInfo.setId(RealmUtil.getNextPrimaryKey(realm, CreditInfo.class));
                                 realm.copyToRealmOrUpdate(creditInfo);
+                                migrationStats.addCreditInfoCreated();
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing credit info " + creditInfo + " to realm", e);
                                 throw e;
@@ -587,7 +565,7 @@ public class MigrationService extends IntentService {
                         public void execute(Realm realm) {
                             try {
                                 realm.copyToRealmOrUpdate(account);
-                                migrationStats.addLedgersCreated();
+                                migrationStats.addAccountsCreated();
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing account " + account + " to realm", e);
                                 throw e;
@@ -660,6 +638,7 @@ public class MigrationService extends IntentService {
                         public void execute(Realm realm) {
                             try {
                                 realm.copyToRealmOrUpdate(productSubscription);
+                                migrationStats.addProductSubscriptionsCreated();
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing product subscription " + productSubscription + " to realm", e);
                                 throw e;
@@ -685,29 +664,29 @@ public class MigrationService extends IntentService {
 
     private RealmList<CurrencyValue> buildCurrencyValueList(Realm realm, Double... values) {
         RealmList<CurrencyValue> currencyValues = new RealmList<>();
-        for (int j = 1; j <= 3; j++) {
-            if (null == values[j-1]) {
+        for (int i = 1; i <= 3; i++) {
+            if (null == values[i-1]) {
+                continue;
+            }
+            Currency currency = realm.where(Currency.class).equalTo("orderNumber", i).findFirst();
+            if (null == currency) {
                 continue;
             }
             final CurrencyValue cv = new CurrencyValue();
-            cv.setValue(values[j-1]);
-            // TODO Need to test this part thoroughly
-            Currency currency = realm.where(Currency.class).equalTo("orderNumber", j).findFirst();
-            if (null != currency) {
-                cv.setCurrency(currency);
-                realm.executeTransaction(new Realm.Transaction() {
-                    @Override
-                    public void execute(Realm realm) {
-                        try {
-                            realm.copyToRealmOrUpdate(cv);
-                        } catch (Exception e) {
-                            Log.e(TAG, "Error writing currency value " + cv + " to realm", e);
-                            throw e;
-                        }
+            cv.setValue(values[i-1]);
+            cv.setCurrency(currency);
+            realm.executeTransaction(new Realm.Transaction() {
+                @Override
+                public void execute(Realm realm) {
+                    try {
+                        realm.copyToRealmOrUpdate(cv);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error writing currency value " + cv + " to realm", e);
+                        throw e;
                     }
-                });
-                currencyValues.add(cv);
-            }
+                }
+            });
+            currencyValues.add(cv);
         }
         return currencyValues;
     }
@@ -752,6 +731,7 @@ public class MigrationService extends IntentService {
                         public void execute(Realm realm) {
                             try {
                                 realm.copyToRealmOrUpdate(voucher);
+                                migrationStats.addVouchersCreated();
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing voucher " + voucher + " to realm", e);
                                 throw e;
@@ -800,6 +780,7 @@ public class MigrationService extends IntentService {
                         public void execute(Realm realm) {
                             try {
                                 realm.copyToRealmOrUpdate(voucherEntry);
+                                migrationStats.addVoucherEntriesCreated();
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing voucher " + voucherEntry + " to realm", e);
                                 throw e;
@@ -858,6 +839,7 @@ public class MigrationService extends IntentService {
                             try {
                                 voucherItem.setId(RealmUtil.getNextPrimaryKey(realm, VoucherItem.class));
                                 realm.copyToRealmOrUpdate(voucherItem);
+                                migrationStats.addVoucherItemsCreated();
                             } catch (Exception e) {
                                 Log.e(TAG, "Error writing voucher item " + voucherItem + " to realm", e);
                                 throw e;
@@ -882,6 +864,6 @@ public class MigrationService extends IntentService {
     }
 
     private Realm getRealm() {
-        return Realm.getInstance(new RealmConfiguration.Builder().name("somerealm9").build());
+        return Realm.getInstance(new RealmConfiguration.Builder().name("somerealm10").build());
     }
 }
