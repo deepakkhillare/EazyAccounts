@@ -52,6 +52,7 @@ public class MigrationService extends IntentService {
     private final MigrationStats migrationStats = new MigrationStats();
     private final Map<String, Configuration> currencyConfigs = new HashMap<>();
     private Company company = null;
+    private String realmName = "default";
 
     public MigrationService() {
         super(TAG);
@@ -90,6 +91,7 @@ public class MigrationService extends IntentService {
 
     public void executeDBMigration() {
         File file = new File(dbFilePath);
+        realmName = file.getName();
         SQLiteDatabase existingDb = null;
         if (file.exists() && !file.isDirectory()) {
             try {
@@ -903,6 +905,6 @@ public class MigrationService extends IntentService {
     }
 
     private Realm getRealm() {
-        return Realm.getInstance(new RealmConfiguration.Builder().name("somerealm10").build());
+        return Realm.getInstance(new RealmConfiguration.Builder().name(realmName).build());
     }
 }
