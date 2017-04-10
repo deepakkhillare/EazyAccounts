@@ -1,9 +1,12 @@
 package com.softkoash.eazyaccounts.migration;
 
+import android.os.Parcel;
+import android.os.Parcelable;
+
 /**
  * Created by Deepak on 3/28/2017.
  */
-public class MigrationStats {
+public class MigrationStats implements Parcelable {
     private int companiesCreated;
     private int accountsCreated;
     private int accountGroupsCreated;
@@ -220,5 +223,54 @@ public class MigrationStats {
                 ", productGroupCreated=" + productGroupCreated +
                 ", productCreated=" + productCreated +
                 '}';
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeIntArray(new int[]{companiesCreated,
+                accountsCreated,
+                accountGroupsCreated,
+                accountBalancesCreated,
+                contactCreated,
+                creditInfoCreated,
+                productSubscriptionsCreated,
+                vouchersCreated,
+                voucherItemsCreated,
+                voucherEntriesCreated,
+                configurationCreated,
+                currencyCreated,
+                unitCreated,
+                productGroupCreated,
+                productCreated});
+
+    }
+
+    public MigrationStats() {
+
+    }
+
+    public MigrationStats(Parcel in) {
+        int[] arr = new int[15];
+        in.readIntArray(arr);
+        companiesCreated = arr[0];
+        accountsCreated = arr[1];
+        accountGroupsCreated = arr[2];
+        accountBalancesCreated = arr[3];
+        contactCreated = arr[4];
+        creditInfoCreated = arr[5];
+        productSubscriptionsCreated = arr[6];
+        vouchersCreated = arr[7];
+        voucherItemsCreated = arr[8];
+        voucherEntriesCreated = arr[9];
+        configurationCreated = arr[10];
+        currencyCreated = arr[11];
+        unitCreated = arr[12];
+        productGroupCreated = arr[13];
+        productCreated = arr[14];
     }
 }

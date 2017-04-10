@@ -21,7 +21,8 @@ public class UiUtil {
         progressDialog.show();
     }
 
-    public static void updateProgressDialog(int progressNumber) {
+    public static void updateProgressDialog(String message, int progressNumber) {
+        progressDialog.setMessage(message);
         progressDialog.setProgress(progressNumber);
     }
 
