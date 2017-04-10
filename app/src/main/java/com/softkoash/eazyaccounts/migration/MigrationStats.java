@@ -10,7 +10,6 @@ public class MigrationStats implements Parcelable {
     private int companiesCreated;
     private int accountsCreated;
     private int accountGroupsCreated;
-    private int accountBalancesCreated;
     private int contactCreated;
     private int creditInfoCreated;
     private int productSubscriptionsCreated;
@@ -123,18 +122,6 @@ public class MigrationStats implements Parcelable {
         this.accountGroupsCreated++;
     }
 
-    public int getAccountBalancesCreated() {
-        return accountBalancesCreated;
-    }
-
-    public void setAccountBalancesCreated(int accountBalancesCreated) {
-        this.accountBalancesCreated = accountBalancesCreated;
-    }
-
-    public void addAccountBalancesCreated() {
-        this.accountBalancesCreated++;
-    }
-
     public int getContactCreated() {
         return contactCreated;
     }
@@ -210,7 +197,6 @@ public class MigrationStats implements Parcelable {
                 "companiesCreated=" + companiesCreated +
                 ", accountsCreated=" + accountsCreated +
                 ", accountGroupsCreated=" + accountGroupsCreated +
-                ", accountBalancesCreated=" + accountBalancesCreated +
                 ", contactCreated=" + contactCreated +
                 ", creditInfoCreated=" + creditInfoCreated +
                 ", productSubscriptionsCreated=" + productSubscriptionsCreated +
@@ -235,7 +221,6 @@ public class MigrationStats implements Parcelable {
         dest.writeIntArray(new int[]{companiesCreated,
                 accountsCreated,
                 accountGroupsCreated,
-                accountBalancesCreated,
                 contactCreated,
                 creditInfoCreated,
                 productSubscriptionsCreated,
@@ -255,22 +240,21 @@ public class MigrationStats implements Parcelable {
     }
 
     public MigrationStats(Parcel in) {
-        int[] arr = new int[15];
+        int[] arr = new int[14];
         in.readIntArray(arr);
         companiesCreated = arr[0];
         accountsCreated = arr[1];
         accountGroupsCreated = arr[2];
-        accountBalancesCreated = arr[3];
-        contactCreated = arr[4];
-        creditInfoCreated = arr[5];
-        productSubscriptionsCreated = arr[6];
-        vouchersCreated = arr[7];
-        voucherItemsCreated = arr[8];
-        voucherEntriesCreated = arr[9];
-        configurationCreated = arr[10];
-        currencyCreated = arr[11];
-        unitCreated = arr[12];
-        productGroupCreated = arr[13];
-        productCreated = arr[14];
+        contactCreated = arr[3];
+        creditInfoCreated = arr[4];
+        productSubscriptionsCreated = arr[5];
+        vouchersCreated = arr[6];
+        voucherItemsCreated = arr[7];
+        voucherEntriesCreated = arr[8];
+        configurationCreated = arr[9];
+        currencyCreated = arr[10];
+        unitCreated = arr[11];
+        productGroupCreated = arr[12];
+        productCreated = arr[13];
     }
 }

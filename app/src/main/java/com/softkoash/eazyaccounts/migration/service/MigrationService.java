@@ -109,7 +109,6 @@ public class MigrationService extends IntentService {
                         + migrationStats.getProductGroupCreated() + " product groups...");
                 migrateLedgerData(existingDb);
                 notifyProgressUpdate(80, "Migrated " + migrationStats.getAccountsCreated() + " accounts, "
-                        + migrationStats.getAccountBalancesCreated() + " account balances," +
                         + migrationStats.getAccountGroupsCreated() + " account groups, " +
                         + migrationStats.getProductSubscriptionsCreated() + " subscriptions...");
                 migrateVoucherData(existingDb);
@@ -338,7 +337,9 @@ public class MigrationService extends IntentService {
                     }
                     configuration.setCreatedDate(new Date());
                     configuration.setCreatedBy(SystemUtil.getDeviceId());
-                    if (category.equals("Currency")) {
+                    if ("C1".equals(configuration.getName()) || "SC1".equals(configuration.getName()) || "D1".equals(configuration.getName())
+                            || "C2".equals(configuration.getName()) || "SC2".equals(configuration.getName()) || "D2".equals(configuration.getName())
+                            || "C3".equals(configuration.getName()) || "SC3".equals(configuration.getName()) || "D3".equals(configuration.getName())) {
                         currencyConfigs.put(configuration.getName(), configuration);
                         //continue so we do not end up adding the currency config in the configuration table of realm!
                         continue;
