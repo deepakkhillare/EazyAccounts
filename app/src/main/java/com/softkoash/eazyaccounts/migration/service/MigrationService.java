@@ -48,6 +48,8 @@ public class MigrationService extends IntentService {
     private final MigrationStats migrationStats = new MigrationStats();
     private final Map<String, Configuration> currencyConfigs = new HashMap<>();
     private Company company = null;
+    private String exportDBFilePath;
+    private String exportDBFileName;
 
     public MigrationService() {
         super(TAG);
@@ -56,6 +58,8 @@ public class MigrationService extends IntentService {
     @Override
     protected void onHandleIntent(@Nullable Intent intent) {
         dbFilePath = intent.getStringExtra("DB_FILE_PATH");
+        exportDBFilePath = intent.getStringExtra("EXPORT_FILE_PATH");
+        exportDBFileName = dbFilePath.substring(dbFilePath.lastIndexOf("/") + 1, dbFilePath.lastIndexOf(".")) + ".realm";
         if (dbFilePath != null && !dbFilePath.isEmpty()) {
             executeDBMigration();
             Log.i(TAG, "Migration completed successfully: " + migrationStats);
@@ -77,6 +81,7 @@ public class MigrationService extends IntentService {
                 migrateItemData(existingDb);
                 migrateLedgerData(existingDb);
                 migrateVoucherData(existingDb);
+                exportDBFile(exportDBFilePath);
             } catch(MigrationException me){
                 Log.e(TAG, "Failed to migrate data", me);
             } finally {
@@ -85,6 +90,20 @@ public class MigrationService extends IntentService {
                 }
             }
         }
+    }
+
+    private void exportDBFile(String exportFilePath) {
+        File exportFile = null ;
+        Realm realm = Realm.getDefaultInstance();
+        try {
+                exportFile = new File(exportFilePath, exportDBFileName);
+                exportFile.delete();
+                realm.writeCopyTo(exportFile);
+        } catch (Exception ex) {
+            Log.d(TAG, "Error while exporting RealmDB file:" + ex.getMessage());
+            ex.printStackTrace();
+        }
+        realm.close();
     }
 
     private void migrateItemData(SQLiteDatabase existingDb) throws MigrationException {
@@ -864,6 +883,6 @@ public class MigrationService extends IntentService {
     }
 
     private Realm getRealm() {
-        return Realm.getInstance(new RealmConfiguration.Builder().name("somerealm10").build());
+        return Realm.getDefaultInstance();
     }
 }

@@ -26,11 +26,11 @@ public class MainActivity extends AppCompatActivity {
     private final int REQUEST_FILE_CHOOSER = 1;
     private final int WRITE_PERMISSION_REQUEST_CODE = 999;
     private final int READ_PERMISSION_REQUEST_CODE = 998;
-    private boolean isWritingAllowed = false;
-    private boolean isReadingAllowed = false;
 
     //widgets
     private Button openFileButton = null;
+
+    private String exportDBFilePath;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,12 +67,21 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         mContext = this.getApplication().getApplicationContext();
+
         if (requestCode == REQUEST_FILE_CHOOSER && resultCode == RESULT_OK) {
             Uri selectedFile = data.getData();
             String filePath = FileUtil.getPath(this, selectedFile);
-            Intent serviceIntent = new Intent(mContext, MigrationService.class);
-            serviceIntent.putExtra("DB_FILE_PATH", filePath);
-            mContext.startService(serviceIntent);
+            exportDBFilePath = filePath.substring(0, filePath.lastIndexOf("/")) + "/";
+            if(null != exportDBFilePath && !exportDBFilePath.isEmpty()) {
+                Intent serviceIntent = new Intent(mContext, MigrationService.class);
+                serviceIntent.putExtra("DB_FILE_PATH", filePath);
+                serviceIntent.putExtra("EXPORT_FILE_PATH", exportDBFilePath);
+                mContext.startService(serviceIntent);
+
+            } else {
+                Toast toast = Toast.makeText(this, "Please provide valid export file path", Toast.LENGTH_SHORT);
+                toast.show();
+            }
 //            UiUtil.createProgressDialog(this);
         }
     }
@@ -107,7 +116,6 @@ public class MainActivity extends AppCompatActivity {
             case WRITE_PERMISSION_REQUEST_CODE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Log.e("value", "Permission Granted, Now you can use local drive for write.");
-                    isWritingAllowed = true;
                 } else {
                     Log.e("value", "Permission Denied, You cannot use local drive for write.");
                 }
@@ -115,7 +123,6 @@ public class MainActivity extends AppCompatActivity {
             case READ_PERMISSION_REQUEST_CODE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Log.e("value", "Permission Granted, Now you can use local drive for read.");
-                    isReadingAllowed = true;
                 } else {
                     Log.e("value", "Permission Denied, You cannot use local drive for read.");
                 }
