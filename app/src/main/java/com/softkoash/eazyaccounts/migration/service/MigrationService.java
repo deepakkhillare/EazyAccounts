@@ -37,7 +37,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import io.realm.Realm;
-import io.realm.RealmConfiguration;
 import io.realm.RealmList;
 import io.realm.RealmResults;
 
@@ -48,7 +47,6 @@ public class MigrationService extends IntentService {
     private static final SimpleDateFormat SHORT_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private String dbFilePath;
     private ResultReceiver receiver;
-    private final int workProgressPercentage = 100;
     private final MigrationStats migrationStats = new MigrationStats();
     private final Map<String, Configuration> currencyConfigs = new HashMap<>();
     private Company company = null;
@@ -62,10 +60,10 @@ public class MigrationService extends IntentService {
 
     @Override
     protected void onHandleIntent(@Nullable Intent intent) {
+        receiver = intent.getParcelableExtra("receiver");
         dbFilePath = intent.getStringExtra("DB_FILE_PATH");
         exportDBFilePath = intent.getStringExtra("EXPORT_FILE_PATH");
         exportDBFileName = dbFilePath.substring(dbFilePath.lastIndexOf("/") + 1, dbFilePath.lastIndexOf(".")) + ".realm";
-        receiver = intent.getParcelableExtra("receiver");
         if (dbFilePath != null && !dbFilePath.isEmpty()) {
             executeDBMigration();
             Log.i(TAG, "Migration completed successfully: " + migrationStats);
@@ -123,6 +121,10 @@ public class MigrationService extends IntentService {
                 exportDBFile(exportDBFilePath);
             } catch(MigrationException me){
                 Log.e(TAG, "Failed to migrate data", me);
+                notifyError(me.getMessage());
+            } catch(Exception me){
+                Log.e(TAG, "Failed to migrate data", me);
+                me.printStackTrace();
                 notifyError(me.getMessage());
             } finally {
                 if (existingDb != null) {
