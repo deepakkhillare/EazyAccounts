@@ -75,7 +75,6 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == REQUEST_FILE_CHOOSER && resultCode == RESULT_OK) {
             Uri selectedFile = data.getData();
             String filePath = FileUtil.getPath(this, selectedFile);
-            exportDBFilePath = filePath.substring(0, filePath.lastIndexOf("/")) + "/";
             Intent serviceIntent = new Intent(mContext, MigrationService.class);
             serviceIntent.putExtra("receiver", new ResultReceiver(new Handler()) {
                 @Override
@@ -112,7 +111,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
             serviceIntent.putExtra("DB_FILE_PATH", filePath);
-            serviceIntent.putExtra("EXPORT_FILE_PATH", exportDBFilePath);
             mContext.startService(serviceIntent);
             UiUtil.createProgressDialog(this);
         }

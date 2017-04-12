@@ -50,8 +50,7 @@ public class MigrationService extends IntentService {
     private final MigrationStats migrationStats = new MigrationStats();
     private final Map<String, Configuration> currencyConfigs = new HashMap<>();
     private Company company = null;
-    private String exportDBFilePath;
-    private String exportDBFileName;
+    private String realmDBFilePath;
 
     public MigrationService() {
         super(TAG);
@@ -61,8 +60,7 @@ public class MigrationService extends IntentService {
     protected void onHandleIntent(@Nullable Intent intent) {
         receiver = intent.getParcelableExtra("receiver");
         dbFilePath = intent.getStringExtra("DB_FILE_PATH");
-        exportDBFilePath = intent.getStringExtra("EXPORT_FILE_PATH");
-        exportDBFileName = dbFilePath.substring(dbFilePath.lastIndexOf("/") + 1, dbFilePath.lastIndexOf(".")) + ".realm";
+        realmDBFilePath = dbFilePath.replace(dbFilePath.substring(dbFilePath.lastIndexOf(".")), ".realm");
         if (dbFilePath != null && !dbFilePath.isEmpty()) {
             executeDBMigration();
             Log.i(TAG, "Migration completed successfully: " + migrationStats);
@@ -116,7 +114,7 @@ public class MigrationService extends IntentService {
                         + migrationStats.getVoucherEntriesCreated() + " voucher entries, " +
                         + migrationStats.getVoucherItemsCreated() + " voucher items...");
                 notifySuccess();
-                exportDBFile(exportDBFilePath);
+                exportDBFile(realmDBFilePath);
             } catch(MigrationException me){
                 Log.e(TAG, "Failed to migrate data", me);
                 notifyError(me.getMessage());
@@ -132,11 +130,11 @@ public class MigrationService extends IntentService {
         }
     }
 
-    private void exportDBFile(String exportFilePath) {
+    private void exportDBFile(String realmDBFilePath) {
         File exportFile = null ;
-        Realm realm = Realm.getDefaultInstance();
+        Realm realm = getRealm();
         try {
-                exportFile = new File(exportFilePath, exportDBFileName);
+                exportFile = new File(realmDBFilePath);
                 exportFile.delete();
                 realm.writeCopyTo(exportFile);
         } catch (Exception ex) {
