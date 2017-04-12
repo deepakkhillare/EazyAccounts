@@ -50,7 +50,6 @@ public class MigrationService extends IntentService {
     private final MigrationStats migrationStats = new MigrationStats();
     private final Map<String, Configuration> currencyConfigs = new HashMap<>();
     private Company company = null;
-    private String realmName = "default";
     private String exportDBFilePath;
     private String exportDBFileName;
 
@@ -93,7 +92,6 @@ public class MigrationService extends IntentService {
 
     public void executeDBMigration() {
         File file = new File(dbFilePath);
-        realmName = file.getName();
         SQLiteDatabase existingDb = null;
         if (file.exists() && !file.isDirectory()) {
             try {
