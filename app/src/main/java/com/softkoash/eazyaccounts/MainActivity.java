@@ -26,11 +26,11 @@ public class MainActivity extends AppCompatActivity {
     private final int REQUEST_FILE_CHOOSER = 1;
     private final int WRITE_PERMISSION_REQUEST_CODE = 999;
     private final int READ_PERMISSION_REQUEST_CODE = 998;
+    private boolean isWritingAllowed = false;
+    private boolean isReadingAllowed = false;
 
     //widgets
     private Button openFileButton = null;
-
-    private String exportDBFilePath;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,7 +67,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         mContext = this.getApplication().getApplicationContext();
-
         if (requestCode == REQUEST_FILE_CHOOSER && resultCode == RESULT_OK) {
             Uri selectedFile = data.getData();
             String filePath = FileUtil.getPath(this, selectedFile);
@@ -82,7 +81,44 @@ public class MainActivity extends AppCompatActivity {
                 Toast toast = Toast.makeText(this, "Please provide valid export file path", Toast.LENGTH_SHORT);
                 toast.show();
             }
-//            UiUtil.createProgressDialog(this);
+            Intent serviceIntent = new Intent(mContext, MigrationService.class);
+            serviceIntent.putExtra("receiver", new ResultReceiver(new Handler()) {
+                @Override
+                protected void onReceiveResult(int resultCode, Bundle resultData) {
+                    super.onReceiveResult(resultCode, resultData);
+                    if (resultCode == Constants.RESULT_PROGRESS_UPDATE) {
+                        UiUtil.updateProgressDialog(resultData.getString(Constants.BUNDLE_PROGRESS_MESSAGE),
+                                resultData.getInt(Constants.BUNDLE_PROGRESS_PERCENT));
+                    } else {
+                        UiUtil.dismissProgressDialog();
+                        if (resultCode == Constants.RESULT_SUCCESS) {
+                            MigrationStats stats = (MigrationStats)resultData.getParcelable(Constants.BUNDLE_MIGRATION_STATS);
+                            new AlertDialog.Builder(MainActivity.this)
+                                    .setMessage("Migration completed successfully: " + stats)
+                                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            dialog.dismiss();
+                                        }
+                                    })
+                                    .show();
+                        } else {
+                            new AlertDialog.Builder(MainActivity.this)
+                                    .setMessage("Migration failed with error: " + resultData.getString(Constants.BUNDLE_ERROR_MESSAGE))
+                                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            dialog.dismiss();
+                                        }
+                                    })
+                                    .show();
+                        }
+                    }
+                }
+            });
+            serviceIntent.putExtra("DB_FILE_PATH", filePath);
+            mContext.startService(serviceIntent);
+            UiUtil.createProgressDialog(this);
         }
     }
 
@@ -116,6 +152,7 @@ public class MainActivity extends AppCompatActivity {
             case WRITE_PERMISSION_REQUEST_CODE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Log.e("value", "Permission Granted, Now you can use local drive for write.");
+                    isWritingAllowed = true;
                 } else {
                     Log.e("value", "Permission Denied, You cannot use local drive for write.");
                 }
@@ -123,6 +160,7 @@ public class MainActivity extends AppCompatActivity {
             case READ_PERMISSION_REQUEST_CODE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Log.e("value", "Permission Granted, Now you can use local drive for read.");
+                    isReadingAllowed = true;
                 } else {
                     Log.e("value", "Permission Denied, You cannot use local drive for read.");
                 }

@@ -4,6 +4,8 @@ import android.app.IntentService;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.os.Bundle;
+import android.os.ResultReceiver;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
@@ -24,6 +26,7 @@ import com.softkoash.eazyaccounts.model.Unit;
 import com.softkoash.eazyaccounts.model.Voucher;
 import com.softkoash.eazyaccounts.model.VoucherEntry;
 import com.softkoash.eazyaccounts.model.VoucherItem;
+import com.softkoash.eazyaccounts.util.Constants;
 import com.softkoash.eazyaccounts.util.RealmUtil;
 import com.softkoash.eazyaccounts.util.SystemUtil;
 
@@ -44,10 +47,12 @@ public class MigrationService extends IntentService {
     private static final SimpleDateFormat LONG_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:SS");
     private static final SimpleDateFormat SHORT_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private String dbFilePath;
+    private ResultReceiver receiver;
     private final int workProgressPercentage = 100;
     private final MigrationStats migrationStats = new MigrationStats();
     private final Map<String, Configuration> currencyConfigs = new HashMap<>();
     private Company company = null;
+    private String realmName = "default";
     private String exportDBFilePath;
     private String exportDBFileName;
 
@@ -60,6 +65,7 @@ public class MigrationService extends IntentService {
         dbFilePath = intent.getStringExtra("DB_FILE_PATH");
         exportDBFilePath = intent.getStringExtra("EXPORT_FILE_PATH");
         exportDBFileName = dbFilePath.substring(dbFilePath.lastIndexOf("/") + 1, dbFilePath.lastIndexOf(".")) + ".realm";
+        receiver = intent.getParcelableExtra("receiver");
         if (dbFilePath != null && !dbFilePath.isEmpty()) {
             executeDBMigration();
             Log.i(TAG, "Migration completed successfully: " + migrationStats);
@@ -68,22 +74,56 @@ public class MigrationService extends IntentService {
         }
     }
 
+    private void notifyProgressUpdate(int progress, String message) {
+        Bundle progressUpdate = new Bundle();
+        progressUpdate.putInt(Constants.BUNDLE_PROGRESS_PERCENT, progress);
+        progressUpdate.putString(Constants.BUNDLE_PROGRESS_MESSAGE, message);
+        receiver.send(Constants.RESULT_PROGRESS_UPDATE, progressUpdate);
+    }
+
+    private void notifySuccess() {
+        Bundle success = new Bundle();
+        success.putParcelable(Constants.BUNDLE_MIGRATION_STATS, migrationStats);
+        receiver.send(Constants.RESULT_SUCCESS, success);
+    }
+
+    private void notifyError(String errorMessage) {
+        Bundle error = new Bundle();
+        error.putString(Constants.BUNDLE_ERROR_MESSAGE, errorMessage);
+        receiver.send(Constants.RESULT_ERROR, error);
+    }
+
     public void executeDBMigration() {
         File file = new File(dbFilePath);
+        realmName = file.getName();
         SQLiteDatabase existingDb = null;
         if (file.exists() && !file.isDirectory()) {
             try {
                 existingDb = SQLiteDatabase.openDatabase(dbFilePath, null, SQLiteDatabase.OPEN_READONLY);
                 this.company = migrateCompanyData(existingDb);
+                notifyProgressUpdate(10, "Migrated " + migrationStats.getCompaniesCreated() + " companies...");
                 migrateConfigurationData(existingDb);
+                notifyProgressUpdate(20, "Migrated " + migrationStats.getConfigurationCreated() + " configurations...");
                 migrateUnitData(existingDb);
+                notifyProgressUpdate(30, "Migrated " + migrationStats.getUnitCreated() + " units...");
                 migrateCurrencyData(existingDb);
+                notifyProgressUpdate(40, "Migrated " + migrationStats.getCurrencyCreated() + " currencies...");
                 migrateItemData(existingDb);
+                notifyProgressUpdate(60, "Migrated " + migrationStats.getProductCreated() + " products, "
+                        + migrationStats.getProductGroupCreated() + " product groups...");
                 migrateLedgerData(existingDb);
+                notifyProgressUpdate(80, "Migrated " + migrationStats.getAccountsCreated() + " accounts, "
+                        + migrationStats.getAccountGroupsCreated() + " account groups, " +
+                        + migrationStats.getProductSubscriptionsCreated() + " subscriptions...");
                 migrateVoucherData(existingDb);
+                notifyProgressUpdate(100, "Migrated " + migrationStats.getVouchersCreated() + " voucher, "
+                        + migrationStats.getVoucherEntriesCreated() + " voucher entries, " +
+                        + migrationStats.getVoucherItemsCreated() + " voucher items...");
+                notifySuccess();
                 exportDBFile(exportDBFilePath);
             } catch(MigrationException me){
                 Log.e(TAG, "Failed to migrate data", me);
+                notifyError(me.getMessage());
             } finally {
                 if (existingDb != null) {
                     existingDb.close();
@@ -316,7 +356,9 @@ public class MigrationService extends IntentService {
                     }
                     configuration.setCreatedDate(new Date());
                     configuration.setCreatedBy(SystemUtil.getDeviceId());
-                    if (category.equals("Currency")) {
+                    if ("C1".equals(configuration.getName()) || "SC1".equals(configuration.getName()) || "D1".equals(configuration.getName())
+                            || "C2".equals(configuration.getName()) || "SC2".equals(configuration.getName()) || "D2".equals(configuration.getName())
+                            || "C3".equals(configuration.getName()) || "SC3".equals(configuration.getName()) || "D3".equals(configuration.getName())) {
                         currencyConfigs.put(configuration.getName(), configuration);
                         //continue so we do not end up adding the currency config in the configuration table of realm!
                         continue;

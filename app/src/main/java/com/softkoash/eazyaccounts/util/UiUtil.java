@@ -16,12 +16,13 @@ public class UiUtil {
         progressDialog = new ProgressDialog(activityContext);
         progressDialog.setMessage("Loading SQLLite data dump...");
         progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-        progressDialog.setIndeterminate(true);
+        progressDialog.setIndeterminate(false);
         progressDialog.setProgress(0);
         progressDialog.show();
     }
 
-    public static void updateProgressDialog(int progressNumber) {
+    public static void updateProgressDialog(String message, int progressNumber) {
+        progressDialog.setMessage(message);
         progressDialog.setProgress(progressNumber);
     }
 

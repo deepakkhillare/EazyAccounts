@@ -1,13 +1,15 @@
 package com.softkoash.eazyaccounts.migration;
 
+import android.os.Parcel;
+import android.os.Parcelable;
+
 /**
  * Created by Deepak on 3/28/2017.
  */
-public class MigrationStats {
+public class MigrationStats implements Parcelable {
     private int companiesCreated;
     private int accountsCreated;
     private int accountGroupsCreated;
-    private int accountBalancesCreated;
     private int contactCreated;
     private int creditInfoCreated;
     private int productSubscriptionsCreated;
@@ -120,18 +122,6 @@ public class MigrationStats {
         this.accountGroupsCreated++;
     }
 
-    public int getAccountBalancesCreated() {
-        return accountBalancesCreated;
-    }
-
-    public void setAccountBalancesCreated(int accountBalancesCreated) {
-        this.accountBalancesCreated = accountBalancesCreated;
-    }
-
-    public void addAccountBalancesCreated() {
-        this.accountBalancesCreated++;
-    }
-
     public int getContactCreated() {
         return contactCreated;
     }
@@ -207,7 +197,6 @@ public class MigrationStats {
                 "companiesCreated=" + companiesCreated +
                 ", accountsCreated=" + accountsCreated +
                 ", accountGroupsCreated=" + accountGroupsCreated +
-                ", accountBalancesCreated=" + accountBalancesCreated +
                 ", contactCreated=" + contactCreated +
                 ", creditInfoCreated=" + creditInfoCreated +
                 ", productSubscriptionsCreated=" + productSubscriptionsCreated +
@@ -220,5 +209,52 @@ public class MigrationStats {
                 ", productGroupCreated=" + productGroupCreated +
                 ", productCreated=" + productCreated +
                 '}';
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeIntArray(new int[]{companiesCreated,
+                accountsCreated,
+                accountGroupsCreated,
+                contactCreated,
+                creditInfoCreated,
+                productSubscriptionsCreated,
+                vouchersCreated,
+                voucherItemsCreated,
+                voucherEntriesCreated,
+                configurationCreated,
+                currencyCreated,
+                unitCreated,
+                productGroupCreated,
+                productCreated});
+
+    }
+
+    public MigrationStats() {
+
+    }
+
+    public MigrationStats(Parcel in) {
+        int[] arr = new int[14];
+        in.readIntArray(arr);
+        companiesCreated = arr[0];
+        accountsCreated = arr[1];
+        accountGroupsCreated = arr[2];
+        contactCreated = arr[3];
+        creditInfoCreated = arr[4];
+        productSubscriptionsCreated = arr[5];
+        vouchersCreated = arr[6];
+        voucherItemsCreated = arr[7];
+        voucherEntriesCreated = arr[8];
+        configurationCreated = arr[9];
+        currencyCreated = arr[10];
+        unitCreated = arr[11];
+        productGroupCreated = arr[12];
+        productCreated = arr[13];
     }
 }
