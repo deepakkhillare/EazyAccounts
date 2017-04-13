@@ -62,6 +62,7 @@ public class MigrationService extends IntentService {
         receiver = intent.getParcelableExtra("receiver");
         dbFilePath = intent.getStringExtra("DB_FILE_PATH");
         realmDBFilePath = dbFilePath.replace(dbFilePath.substring(dbFilePath.lastIndexOf(".")), ".realm");
+        Log.d(TAG, "SQLite path: " + dbFilePath +", realm path: " + realmDBFilePath);
         if (dbFilePath != null && !dbFilePath.isEmpty()) {
             executeDBMigration();
             Log.i(TAG, "Migration completed successfully: " + migrationStats);
@@ -109,23 +110,18 @@ public class MigrationService extends IntentService {
                 migrateLedgerData(existingDb);
                 notifyProgressUpdate(80, "Migrated " + migrationStats.getAccountsCreated() + " accounts, "
                         + migrationStats.getAccountGroupsCreated() + " account groups, " +
-                        + migrationStats.getProductSubscriptionsCreated() + " subscriptions...");
+                        +migrationStats.getProductSubscriptionsCreated() + " subscriptions...");
                 migrateVoucherData(existingDb);
-                notifyProgressUpdate(90, "Migrated " + migrationStats.getVouchersCreated() + " voucher, "
+                notifyProgressUpdate(100, "Migrated " + migrationStats.getVouchersCreated() + " voucher, "
                         + migrationStats.getVoucherEntriesCreated() + " voucher entries, " +
-                        + migrationStats.getVoucherItemsCreated() + " voucher items...");
-                migrateBhavEntry(existingDb);
-                notifyProgressUpdate(100, "Migrated " + migrationStats.getBhavEntryCreated() + " bhaventry, "
-                        + migrationStats.getBhavEntryCreated() + " bhaventry entries, " +
-                        + migrationStats.getBhavEntryCreated() + " bhaventry items...");
+                        +migrationStats.getVoucherItemsCreated() + " voucher items...");
                 notifySuccess();
                 exportDBFile(realmDBFilePath);
-            } catch(MigrationException me){
+            } catch (MigrationException me) {
                 Log.e(TAG, "Failed to migrate data", me);
                 notifyError(me.getMessage());
-            } catch(Exception me){
+            } catch (Exception me) {
                 Log.e(TAG, "Failed to migrate data", me);
-                me.printStackTrace();
                 notifyError(me.getMessage());
             } finally {
                 if (existingDb != null) {
@@ -136,26 +132,29 @@ public class MigrationService extends IntentService {
     }
 
     private void exportDBFile(String realmDBFilePath) {
-        File exportFile = null ;
-        Realm realm = getRealm();
+        File exportFile = null;
+        Realm realm = null;
         try {
-                exportFile = new File(realmDBFilePath);
-                exportFile.delete();
-                realm.writeCopyTo(exportFile);
+            realm = getRealm();
+            exportFile = new File(realmDBFilePath);
+            exportFile.delete();
+            realm.writeCopyTo(exportFile);
         } catch (Exception ex) {
-            Log.d(TAG, "Error while exporting RealmDB file:" + ex.getMessage());
-            ex.printStackTrace();
+            Log.e(TAG, "Error while exporting RealmDB file", ex);
+        } finally {
+            if (null != realm) {
+                realm.close();
+            }
         }
-        realm.close();
     }
 
     private void migrateItemData(SQLiteDatabase existingDb) throws MigrationException {
         Log.d(TAG, "Called migrate Item data...");
-        insertProductGroupData(existingDb);
-        insertProductData(existingDb);
+        migrateProductGroupData(existingDb);
+        migrateProductData(existingDb);
     }
 
-    private void insertProductData(SQLiteDatabase existingDb) throws MigrationException {
+    private void migrateProductData(SQLiteDatabase existingDb) throws MigrationException {
         Log.d(TAG, "Called migrate Product data...");
         Cursor productDataCursor = null;
         Realm realm = null;
@@ -168,11 +167,9 @@ public class MigrationService extends IntentService {
             sql.append(" IsDirty, IsDeleted, GrossQuantity, NettQuantity, GrossOpeningStock, NettOpeningStock ");
             sql.append(" from Item where Item.IsGroup = 0 order by Item.Id");
             productDataCursor = existingDb.rawQuery(sql.toString(), null);
-            if(null != productDataCursor) {
+            if (null != productDataCursor) {
                 while (productDataCursor.moveToNext()) {
                     final Product product = new Product();
-                    final RealmList<CurrencyValue> currencyValueList = new RealmList<>();
-                    final RealmList<CurrencyValue> extraChargeList = new RealmList<>();
 
                     product.setId(productDataCursor.getInt(0));
                     product.setName(productDataCursor.getString(1));
@@ -182,7 +179,7 @@ public class MigrationService extends IntentService {
 
                     //Find Unit
                     String searchUnitData = productDataCursor.getString(6);
-                    RealmResults<Unit> unitRealmResult = realm.where(Unit.class).equalTo("name",searchUnitData).findAll();
+                    RealmResults<Unit> unitRealmResult = realm.where(Unit.class).equalTo("name", searchUnitData).findAll();
                     Unit unit = unitRealmResult.first();
                     product.setUnit(unit);
 
@@ -194,8 +191,8 @@ public class MigrationService extends IntentService {
                     ProductGroup prodGroup = productGroupResult.first();
                     product.setProductGroup(prodGroup);
 
-                    product.setDirty(productDataCursor.getInt(11) == 1? true : false);
-                    product.setDeleted(productDataCursor.getInt(12) == 1? true : false);
+                    product.setDirty(productDataCursor.getInt(11) == 1 ? true : false);
+                    product.setDeleted(productDataCursor.getInt(12) == 1 ? true : false);
                     product.setGrossQuantity(productDataCursor.getDouble(13));
                     product.setNetQuantity(productDataCursor.getDouble(14));
                     product.setGrossOpeningStock(productDataCursor.getDouble(15));
@@ -232,16 +229,16 @@ public class MigrationService extends IntentService {
         }
     }
 
-    private void insertProductGroupData(SQLiteDatabase existingDb) throws MigrationException {
-        Log.d(TAG, "Called inserting ProductGroup data...");
+    private void migrateProductGroupData(SQLiteDatabase existingDb) throws MigrationException {
+        Log.d(TAG, "Called migrate ProductGroup data...");
         Cursor productGroupCursor = null;
         Realm realm = null;
         try {
             String sql = "select Id, Name, Remark, IsDirty, IsDeleted from Item where Item.IsGroup = 1 Order by Id";
             realm = getRealm();
             productGroupCursor = existingDb.rawQuery(sql, null);
-            if( null != productGroupCursor) {
-                while(productGroupCursor.moveToNext()) {
+            if (null != productGroupCursor) {
+                while (productGroupCursor.moveToNext()) {
                     final ProductGroup productGroup = new ProductGroup();
                     productGroup.setId(productGroupCursor.getInt(0));
                     productGroup.setName(productGroupCursor.getString(1));
@@ -398,8 +395,8 @@ public class MigrationService extends IntentService {
         Currency currency = null;
         if (null != nameConfig && null != codeConfig && null != scaleConfig) {
             currency = new Currency();
-            currency.setName(nameConfig.getValue()); // TODO: We should take value instead of name
-            currency.setCode(codeConfig.getValue()); // TODO: We should take value instead of name
+            currency.setName(nameConfig.getValue());
+            currency.setCode(codeConfig.getValue());
             currency.setDecimalScale(Integer.parseInt(scaleConfig.getValue()));
             currency.setDirty(nameConfig.isDirty());
             currency.setDeleted(nameConfig.isDeleted());
@@ -678,7 +675,7 @@ public class MigrationService extends IntentService {
         }
     }
 
-    private void migrateLedgerPriceList(SQLiteDatabase sqLiteDatabase, Account account) throws MigrationException{
+    private void migrateLedgerPriceList(SQLiteDatabase sqLiteDatabase, Account account) throws MigrationException {
         Cursor ledgerCursor = null;
         Realm realm = null;
         try {
@@ -729,7 +726,7 @@ public class MigrationService extends IntentService {
     private RealmList<CurrencyValue> buildCurrencyValueList(Realm realm, Double... values) {
         RealmList<CurrencyValue> currencyValues = new RealmList<>();
         for (int i = 1; i <= 3; i++) {
-            if (null == values[i-1]) {
+            if (null == values[i - 1]) {
                 continue;
             }
             Currency currency = realm.where(Currency.class).equalTo("orderNumber", i).findFirst();
@@ -737,7 +734,7 @@ public class MigrationService extends IntentService {
                 continue;
             }
             final CurrencyValue cv = new CurrencyValue();
-            cv.setValue(values[i-1]);
+            cv.setValue(values[i - 1]);
             cv.setCurrency(currency);
             realm.executeTransaction(new Realm.Transaction() {
                 @Override
@@ -789,6 +786,7 @@ public class MigrationService extends IntentService {
                     voucher.setCreatedBy(SystemUtil.getDeviceId());
                     migrateVoucherEntries(sqLiteDatabase, voucher);
                     migrateVoucherItems(sqLiteDatabase, voucher);
+                    migrateBhavEntry(sqLiteDatabase, voucher);
                     Log.d(TAG, "Loaded voucher: " + voucher);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -843,7 +841,7 @@ public class MigrationService extends IntentService {
                         @Override
                         public void execute(Realm realm) {
                             try {
-                                if(voucherEntry.getId() <= 0) {
+                                if (voucherEntry.getId() <= 0) {
                                     voucherEntry.setId(RealmUtil.getNextPrimaryKey(realm, VoucherEntry.class));
                                 }
                                 realm.copyToRealmOrUpdate(voucherEntry);
@@ -885,7 +883,8 @@ public class MigrationService extends IntentService {
                 while (voucherCursor.moveToNext()) {
                     int i = 0;
                     final VoucherItem voucherItem = new VoucherItem();
-                    voucherItem.setProduct(realm.where(Product.class).equalTo("id", voucherCursor.getInt(i++)).findFirst());;
+                    voucherItem.setProduct(realm.where(Product.class).equalTo("id", voucherCursor.getInt(i++)).findFirst());
+                    ;
                     voucherItem.setQuantity(voucherCursor.getDouble(i++));
                     voucherItem.setLessQuantity(voucherCursor.getDouble(i++));
                     voucherItem.setRates(buildCurrencyValueList(realm, voucherCursor.getDouble(i++),
@@ -930,61 +929,67 @@ public class MigrationService extends IntentService {
         }
     }
 
-    private void migrateBhavEntry(SQLiteDatabase existingDb) throws MigrationException {
+    private void migrateBhavEntry(SQLiteDatabase existingDb, Voucher voucher) throws MigrationException {
         Log.d(TAG, "Called migrate bhaventry data...");
         Cursor bhavEntryCursor = null;
         Realm realm = null;
         try {
-                realm = getRealm();
-                StringBuilder sql = new StringBuilder();
-                sql.append(" Select Id, VoucherID, PartyAccountID,");
-                sql.append("        DebitAmount1, DebitAmount2, DebitAmount3,");
-                sql.append("        CreditAmount1, CreditAmount2, CreditAmount3,");
-                sql.append("        BhavType, Date, IsDirty, IsDeleted ");
-                sql.append(" from bhaventry");
-                sql.append("  order by Id");
+            realm = getRealm();
+            StringBuilder sql = new StringBuilder();
+            sql.append(" Select Id, PartyAccountID,");
+            sql.append("        DebitAmount1, DebitAmount2, DebitAmount3,");
+            sql.append("        CreditAmount1, CreditAmount2, CreditAmount3,");
+            sql.append("        BhavType, Date, IsDirty, IsDeleted ");
+            sql.append(" from bhaventry where VoucherId = " + voucher.getId());
+            sql.append("  order by Id");
 
             bhavEntryCursor = existingDb.rawQuery(sql.toString(), null);
-            if(null != bhavEntryCursor) {
-                while(bhavEntryCursor.moveToNext()) {
-                    final BhavEntry  bhavEntry = new BhavEntry();
-                    int i = 0 ;
+            if (null != bhavEntryCursor) {
+                RealmList<BhavEntry> bhavEntries = new RealmList<>();
+                while (bhavEntryCursor.moveToNext()) {
+                    final BhavEntry bhavEntry = new BhavEntry();
+                    int i = 0;
                     bhavEntry.setId(bhavEntryCursor.getInt(i++));
-                    bhavEntry.setVoucher(realm.where(Voucher.class).equalTo("id",bhavEntryCursor.getInt(i++)).findFirst());
-                    bhavEntry.setAccount(realm.where(Account.class).equalTo("id", bhavEntryCursor.getInt(i++)).findFirst());
+                    bhavEntry.setPartyAccount(realm.where(Account.class).equalTo("id", bhavEntryCursor.getInt(i++)).findFirst());
                     bhavEntry.setDebitAmount(buildCurrencyValueList(realm, bhavEntryCursor.getDouble(i++),
                             bhavEntryCursor.getDouble(i++), bhavEntryCursor.getDouble(i++)));
                     bhavEntry.setCreditAmount(buildCurrencyValueList(realm, bhavEntryCursor.getDouble(i++),
                             bhavEntryCursor.getDouble(i++), bhavEntryCursor.getDouble(i++)));
                     bhavEntry.setType(bhavEntryCursor.getString(i++));
-                    bhavEntry.setBhavDate(SHORT_DATE_FORMAT.parse(bhavEntryCursor.getString(i++)));
+                    String bhavDateStr = bhavEntryCursor.getString(i++);
+                    if (null != bhavDateStr && !bhavDateStr.trim().isEmpty()) {
+                        bhavEntry.setBhavDate(SHORT_DATE_FORMAT.parse(bhavDateStr));
+                    }
                     bhavEntry.setDirty(bhavEntryCursor.getInt(i++) == 1 ? true : false);
                     bhavEntry.setDeleted(bhavEntryCursor.getInt(i++) == 1 ? true : false);
-                    Log.d(TAG, "Loading BhaEntry");
+                    Log.d(TAG, "Loaded BhavEntry: " + bhavEntry);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
                         public void execute(Realm realm) {
                             try {
-                                bhavEntry.setId(RealmUtil.getNextPrimaryKey(realm, BhavEntry.class));
+                                if (bhavEntry.getId() <= 0) {
+                                    bhavEntry.setId(RealmUtil.getNextPrimaryKey(realm, BhavEntry.class));
+                                }
                                 realm.copyToRealmOrUpdate(bhavEntry);
                                 migrationStats.addBhavEntryCreated();
                             } catch (Exception ex) {
-                                Log.e(TAG, "Error while writing BhavEntry Data...");
-                                ex.printStackTrace();
+                                Log.e(TAG, "Error while writing BhavEntry Data...", ex);
+                                throw ex;
                             }
                         }
                     });
+                    bhavEntries.add(bhavEntry);
                 }
-
+                voucher.setBhavEntries(bhavEntries);
             }
         } catch (Exception ex) {
             Log.e(TAG, "Error migrating the BhavEntry  table", ex);
             throw new MigrationException("Error migrating the BhavEntry table", ex);
         } finally {
-            if(bhavEntryCursor != null) {
+            if (bhavEntryCursor != null) {
                 bhavEntryCursor.close();
             }
-            if(realm != null) {
+            if (realm != null) {
                 realm.close();
             }
         }

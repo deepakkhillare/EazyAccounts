@@ -25,6 +25,8 @@ public class Voucher extends RealmObject {
 
     private RealmList<VoucherItem> voucherItems;
 
+    private RealmList<BhavEntry> bhavEntries;
+
     private Date freezeDate;
 
     private Boolean isFreezed;
@@ -130,6 +132,14 @@ public class Voucher extends RealmObject {
 
     public void setVoucherItems(RealmList<VoucherItem> voucherItems) {
         this.voucherItems = voucherItems;
+    }
+
+    public RealmList<BhavEntry> getBhavEntries() {
+        return bhavEntries;
+    }
+
+    public void setBhavEntries(RealmList<BhavEntry> bhavEntries) {
+        this.bhavEntries = bhavEntries;
     }
 
     public Boolean getDirty() {

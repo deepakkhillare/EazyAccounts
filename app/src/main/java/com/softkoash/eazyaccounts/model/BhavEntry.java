@@ -14,22 +14,13 @@ public class BhavEntry extends RealmObject {
     @PrimaryKey
     private Integer id;
 
-    private Voucher voucher;
-    private Account account;
+    private Account partyAccount;
     private RealmList<CurrencyValue> debitAmount;
     private RealmList<CurrencyValue> creditAmount;
     private String type;
     private Date bhavDate;
     private Boolean isDirty;
     private Boolean isDeleted;
-
-    public Voucher getVoucher() {
-        return voucher;
-    }
-
-    public void setVoucher(Voucher voucher) {
-        this.voucher = voucher;
-    }
 
     public Integer getId() {
         return id;
@@ -39,12 +30,12 @@ public class BhavEntry extends RealmObject {
         this.id = id;
     }
 
-    public Account getAccount() {
-        return account;
+    public Account getPartyAccount() {
+        return partyAccount;
     }
 
-    public void setAccount(Account account) {
-        this.account = account;
+    public void setPartyAccount(Account partyAccount) {
+        this.partyAccount = partyAccount;
     }
 
     public RealmList<CurrencyValue> getDebitAmount() {
