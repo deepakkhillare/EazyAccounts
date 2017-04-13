@@ -21,6 +21,15 @@ public class MigrationStats implements Parcelable {
     private int unitCreated;
     private int productGroupCreated;
     private int productCreated;
+    private int bhavEntryCreated;
+
+    public int getBhavEntryCreated() {
+        return bhavEntryCreated;
+    }
+
+    public void setBhavEntryCreated(int bhavEntryCreated) {
+        this.bhavEntryCreated = bhavEntryCreated;
+    }
 
     public int getProductGroupCreated() {
         return productGroupCreated;
@@ -208,6 +217,7 @@ public class MigrationStats implements Parcelable {
                 ", unitCreated=" + unitCreated +
                 ", productGroupCreated=" + productGroupCreated +
                 ", productCreated=" + productCreated +
+                ", bhavEntryCreated=" + bhavEntryCreated +
                 '}';
     }
 

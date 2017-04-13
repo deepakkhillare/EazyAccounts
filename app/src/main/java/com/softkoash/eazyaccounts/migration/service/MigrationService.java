@@ -13,6 +13,7 @@ import com.softkoash.eazyaccounts.migration.MigrationException;
 import com.softkoash.eazyaccounts.migration.MigrationStats;
 import com.softkoash.eazyaccounts.model.Account;
 import com.softkoash.eazyaccounts.model.AccountGroup;
+import com.softkoash.eazyaccounts.model.BhavEntry;
 import com.softkoash.eazyaccounts.model.Company;
 import com.softkoash.eazyaccounts.model.Configuration;
 import com.softkoash.eazyaccounts.model.Contact;
@@ -110,9 +111,13 @@ public class MigrationService extends IntentService {
                         + migrationStats.getAccountGroupsCreated() + " account groups, " +
                         + migrationStats.getProductSubscriptionsCreated() + " subscriptions...");
                 migrateVoucherData(existingDb);
-                notifyProgressUpdate(100, "Migrated " + migrationStats.getVouchersCreated() + " voucher, "
+                notifyProgressUpdate(90, "Migrated " + migrationStats.getVouchersCreated() + " voucher, "
                         + migrationStats.getVoucherEntriesCreated() + " voucher entries, " +
                         + migrationStats.getVoucherItemsCreated() + " voucher items...");
+                migrateBhavEntry(existingDb);
+                notifyProgressUpdate(100, "Migrated " + migrationStats.getBhavEntryCreated() + " bhaventry, "
+                        + migrationStats.getBhavEntryCreated() + " bhaventry entries, " +
+                        + migrationStats.getBhavEntryCreated() + " bhaventry items...");
                 notifySuccess();
                 exportDBFile(realmDBFilePath);
             } catch(MigrationException me){
@@ -920,6 +925,67 @@ public class MigrationService extends IntentService {
                 realm.close();
             }
         }
+    }
+
+    private void migrateBhavEntry(SQLiteDatabase existingDb) throws MigrationException {
+        Log.d(TAG, "Called migrate bhaventry data...");
+        Cursor bhavEntryCursor = null;
+        Realm realm = null;
+        try {
+                realm = getRealm();
+                StringBuilder sql = new StringBuilder();
+                sql.append(" Select Id, VoucherID, PartyAccountID,");
+                sql.append("        DebitAmount1, DebitAmount2, DebitAmount3,");
+                sql.append("        CreditAmount1, CreditAmount2, CreditAmount3,");
+                sql.append("        BhavType, Date, IsDirty, IsDeleted ");
+                sql.append(" from bhaventry");
+                sql.append("  order by Id");
+
+            bhavEntryCursor = existingDb.rawQuery(sql.toString(), null);
+            if(null != bhavEntryCursor) {
+                while(bhavEntryCursor.moveToNext()) {
+                    final BhavEntry  bhavEntry = new BhavEntry();
+                    int i = 0 ;
+                    bhavEntry.setId(bhavEntryCursor.getInt(i++));
+                    bhavEntry.setVoucher(realm.where(Voucher.class).equalTo("id",bhavEntryCursor.getInt(i++)).findFirst());
+                    bhavEntry.setAccount(realm.where(Account.class).equalTo("id", bhavEntryCursor.getInt(i++)).findFirst());
+                    bhavEntry.setDebitAmount(buildCurrencyValueList(realm, bhavEntryCursor.getDouble(i++),
+                            bhavEntryCursor.getDouble(i++), bhavEntryCursor.getDouble(i++)));
+                    bhavEntry.setCreditAmount(buildCurrencyValueList(realm, bhavEntryCursor.getDouble(i++),
+                            bhavEntryCursor.getDouble(i++), bhavEntryCursor.getDouble(i++)));
+                    bhavEntry.setType(bhavEntryCursor.getString(i++));
+                    bhavEntry.setBhavDate(SHORT_DATE_FORMAT.parse(bhavEntryCursor.getString(i++)));
+                    bhavEntry.setDirty(bhavEntryCursor.getInt(i++) == 1 ? true : false);
+                    bhavEntry.setDeleted(bhavEntryCursor.getInt(i++) == 1 ? true : false);
+                    Log.d(TAG, "Loading BhaEntry");
+                    realm.executeTransaction(new Realm.Transaction() {
+                        @Override
+                        public void execute(Realm realm) {
+                            try {
+                                bhavEntry.setId(RealmUtil.getNextPrimaryKey(realm, BhavEntry.class));
+                                realm.copyToRealmOrUpdate(bhavEntry);
+                                migrationStats.addVoucherItemsCreated();
+                            } catch (Exception ex) {
+                                Log.e(TAG, "Error while writing BhavEntry Data...");
+                                ex.printStackTrace();
+                            }
+                        }
+                    });
+                }
+
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Error migrating the BhavEntry  table", ex);
+            throw new MigrationException("Error migrating the BhavEntry table", ex);
+        } finally {
+            if(bhavEntryCursor != null) {
+                bhavEntryCursor.close();
+            }
+            if(realm != null) {
+                realm.close();
+            }
+        }
+
     }
 
     private Realm getRealm() {
