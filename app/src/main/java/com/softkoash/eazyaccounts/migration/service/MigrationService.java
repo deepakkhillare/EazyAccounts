@@ -557,7 +557,7 @@ public class MigrationService extends IntentService {
             ledgerCursor = sqLiteDatabase.rawQuery("SELECT Id, Name, IsDirty, IsDeleted, Under, IsSystem" +
                     ", OpeningBalanceCurrency1, OpeningBalanceCurrency2, OpeningBalanceCurrency3 " +
                     ", Locality, Address, City, PrimaryMobileNo, CreditLimitLevel1, CreditLimitLevel2 " +
-                    " FROM Ledger", null);
+                    " FROM Ledger where IsLedger = 1 ", null);
             if (null != ledgerCursor) {
                 //NB: there will be only one company in existing sqlite database...
                 while (ledgerCursor.moveToNext()) {
@@ -843,6 +843,9 @@ public class MigrationService extends IntentService {
                         @Override
                         public void execute(Realm realm) {
                             try {
+                                if(voucherEntry.getId() <= 0) {
+                                    voucherEntry.setId(RealmUtil.getNextPrimaryKey(realm, VoucherEntry.class));
+                                }
                                 realm.copyToRealmOrUpdate(voucherEntry);
                                 migrationStats.addVoucherEntriesCreated();
                             } catch (Exception e) {
@@ -964,7 +967,7 @@ public class MigrationService extends IntentService {
                             try {
                                 bhavEntry.setId(RealmUtil.getNextPrimaryKey(realm, BhavEntry.class));
                                 realm.copyToRealmOrUpdate(bhavEntry);
-                                migrationStats.addVoucherItemsCreated();
+                                migrationStats.addBhavEntryCreated();
                             } catch (Exception ex) {
                                 Log.e(TAG, "Error while writing BhavEntry Data...");
                                 ex.printStackTrace();

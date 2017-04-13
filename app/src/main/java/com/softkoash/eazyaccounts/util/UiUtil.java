@@ -18,6 +18,7 @@ public class UiUtil {
         progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
         progressDialog.setIndeterminate(false);
         progressDialog.setProgress(0);
+        progressDialog.setCancelable(false);
         progressDialog.show();
     }
 

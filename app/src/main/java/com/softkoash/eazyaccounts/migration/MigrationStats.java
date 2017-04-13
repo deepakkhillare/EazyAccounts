@@ -95,6 +95,10 @@ public class MigrationStats implements Parcelable {
         this.productCreated++;
     }
 
+    public void addBhavEntryCreated() {
+        this.bhavEntryCreated++;
+    }
+
     public int getAccountsCreated() {
         return accountsCreated;
     }
