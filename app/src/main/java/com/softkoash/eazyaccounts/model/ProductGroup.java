@@ -7,10 +7,6 @@ import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-/**
- * Created by Nirav on 09-04-2017.
- */
-
 public class ProductGroup extends RealmObject {
     @PrimaryKey
     private Integer id;
