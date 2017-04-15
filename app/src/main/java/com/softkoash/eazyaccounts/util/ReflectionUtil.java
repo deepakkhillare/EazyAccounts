@@ -90,7 +90,7 @@ public class ReflectionUtil {
                 try {
                     rv = Constants.SHORT_DATE_FORMAT.parse(dtStr);
                 } catch (ParseException e) {
-                    e.printStackTrace();
+                    Log.e(TAG, "Error parsing date value: " + dtStr + " for field: " + fieldType.getName(), e);
                 }
             }
         } else if (Boolean.class.isAssignableFrom(fieldType)) {
