@@ -29,31 +29,20 @@ import com.softkoash.eazyaccounts.model.VoucherEntry;
 import com.softkoash.eazyaccounts.model.VoucherItem;
 import com.softkoash.eazyaccounts.util.Constants;
 import com.softkoash.eazyaccounts.util.RealmUtil;
+import com.softkoash.eazyaccounts.util.ReflectionUtil;
 import com.softkoash.eazyaccounts.util.SystemUtil;
 
 import java.io.File;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import io.realm.Realm;
-import io.realm.RealmConfiguration;
 import io.realm.RealmList;
-import io.realm.RealmObject;
-import io.realm.RealmResults;
 
 public class MigrationService extends IntentService {
     private static final String TAG = MigrationService.class.getSimpleName();
 
-    private static final SimpleDateFormat LONG_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:SS");
-    private static final SimpleDateFormat SHORT_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private String dbFilePath;
     private ResultReceiver receiver;
     private final MigrationStats migrationStats = new MigrationStats();
@@ -192,7 +181,7 @@ public class MigrationService extends IntentService {
             productDataCursor = existingDb.rawQuery(sql.toString(), null);
             if (null != productDataCursor) {
                 while (productDataCursor.moveToNext()) {
-                    final Product product = (Product) convertToRealm(productDataCursor, 0, 10, Product.class, realm);
+                    final Product product = (Product) ReflectionUtil.convertToRealm(productDataCursor, 0, 10, Product.class, realm);
                     int i = 11;
                     product.setPriceList(buildCurrencyValueList(realm, productDataCursor.getDouble(i++), productDataCursor.getDouble(i++), productDataCursor.getDouble(i++)));
                     product.setExtraChargeRateList(buildCurrencyValueList(realm, productDataCursor.getDouble(i++), productDataCursor.getDouble(i++), productDataCursor.getDouble(i++)));
@@ -242,7 +231,7 @@ public class MigrationService extends IntentService {
             productGroupCursor = existingDb.rawQuery(sqlBuilder.toString(), null);
             if (null != productGroupCursor) {
                 while (productGroupCursor.moveToNext()) {
-                    final ProductGroup productGroup = (ProductGroup) convertToRealm(productGroupCursor, 0, productGroupCursor.getColumnCount() - 1, ProductGroup.class, realm);
+                    final ProductGroup productGroup = (ProductGroup) ReflectionUtil.convertToRealm(productGroupCursor, 0, productGroupCursor.getColumnCount() - 1, ProductGroup.class, realm);
                     Log.d(TAG, "Loaded ProductGroup : " + productGroup);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -290,7 +279,7 @@ public class MigrationService extends IntentService {
             if (null != companiesCursor) {
                 //NB: there will be only one company in existing sqlite database...
                 if (companiesCursor.moveToNext()) {
-                    final Company company = (Company) convertToRealm(companiesCursor, 0, companiesCursor.getColumnCount() - 1, Company.class, realm);
+                    final Company company = (Company) ReflectionUtil.convertToRealm(companiesCursor, 0, companiesCursor.getColumnCount() - 1, Company.class, realm);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
                         public void execute(Realm realm) {
@@ -338,10 +327,10 @@ public class MigrationService extends IntentService {
             configurationCursor = existingDb.rawQuery(sqlBuilder.toString(), null);
             if (null != configurationCursor) {
                 while (configurationCursor.moveToNext()) {
-                    final Configuration configuration = (Configuration) convertToRealm(configurationCursor, 0, 5, Configuration.class, realm);
+                    final Configuration configuration = (Configuration) ReflectionUtil.convertToRealm(configurationCursor, 0, 5, Configuration.class, realm);
                     String modifiedTimeStr = configurationCursor.getString(6);
                     if (modifiedTimeStr != null && !modifiedTimeStr.isEmpty()) {
-                        Date modifiedTime = LONG_DATE_FORMAT.parse(modifiedTimeStr);
+                        Date modifiedTime = Constants.LONG_DATE_FORMAT.parse(modifiedTimeStr);
                         configuration.setUpdateDate(modifiedTime);
                     }
                     if ("C1".equals(configuration.getName()) || "SC1".equals(configuration.getName()) || "D1".equals(configuration.getName())
@@ -455,7 +444,7 @@ public class MigrationService extends IntentService {
             unitCursor = existingDb.rawQuery(sqlBuilder.toString(), null);
             if (null != unitCursor) {
                 while (unitCursor.moveToNext()) {
-                    final Unit unit = (Unit) convertToRealm(unitCursor, 0, unitCursor.getColumnCount() - 1, Unit.class, realm);
+                    final Unit unit = (Unit) ReflectionUtil.convertToRealm(unitCursor, 0, unitCursor.getColumnCount() - 1, Unit.class, realm);
                     Log.d(TAG, "Loaded unit: " + unit);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -500,7 +489,7 @@ public class MigrationService extends IntentService {
             ledgerCursor = sqLiteDatabase.rawQuery(sqlBuilder.toString(), null);
             if (null != ledgerCursor) {
                 while (ledgerCursor.moveToNext()) {
-                    final AccountGroup accountGroup = (AccountGroup) convertToRealm(ledgerCursor, 0, ledgerCursor.getColumnCount() - 1, AccountGroup.class, realm);
+                    final AccountGroup accountGroup = (AccountGroup) ReflectionUtil.convertToRealm(ledgerCursor, 0, ledgerCursor.getColumnCount() - 1, AccountGroup.class, realm);
                     Log.d(TAG, "Loaded account group: " + accountGroup);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -559,13 +548,12 @@ public class MigrationService extends IntentService {
             sqlBuilder.append(" where IsLedger = 1 ");
             ledgerCursor = sqLiteDatabase.rawQuery(sqlBuilder.toString(), null);
             if (null != ledgerCursor) {
-                //NB: there will be only one company in existing sqlite database...
                 while (ledgerCursor.moveToNext()) {
-                    final Account account = (Account) convertToRealm(ledgerCursor, 0, 5, Account.class, realm);
+                    final Account account = (Account) ReflectionUtil.convertToRealm(ledgerCursor, 0, 5, Account.class, realm);
                     account.setOpeningBalances(buildCurrencyValueList(realm, ledgerCursor.getDouble(6),
                             ledgerCursor.getDouble(7), ledgerCursor.getDouble(8)));
 
-                    final Contact contact = (Contact) convertToRealm(ledgerCursor, 9, 12, Contact.class, realm);
+                    final Contact contact = (Contact) ReflectionUtil.convertToRealm(ledgerCursor, 9, 12, Contact.class, realm);
                     Log.d(TAG, "Loaded contact: " + contact);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -582,7 +570,7 @@ public class MigrationService extends IntentService {
                     });
                     account.setContact(contact);
 
-                    final CreditInfo creditInfo = (CreditInfo) convertToRealm(ledgerCursor, 13, 14, CreditInfo.class, realm);
+                    final CreditInfo creditInfo = (CreditInfo) ReflectionUtil.convertToRealm(ledgerCursor, 13, 14, CreditInfo.class, realm);
                     Log.d(TAG, "Loaded credit info: " + creditInfo);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -688,7 +676,7 @@ public class MigrationService extends IntentService {
             if (null != ledgerCursor) {
                 RealmList<ProductSubscription> productSubscriptions = new RealmList<>();
                 while (ledgerCursor.moveToNext()) {
-                    final ProductSubscription productSubscription = (ProductSubscription) convertToRealm(ledgerCursor, 0, 3, ProductSubscription.class, realm);
+                    final ProductSubscription productSubscription = (ProductSubscription) ReflectionUtil.convertToRealm(ledgerCursor, 0, 3, ProductSubscription.class, realm);
                     int i = 4;
                     productSubscription.setRates(buildCurrencyValueList(realm, ledgerCursor.getDouble(i++),
                             ledgerCursor.getDouble(i++), ledgerCursor.getDouble(i++)));
@@ -777,7 +765,7 @@ public class MigrationService extends IntentService {
             voucherCursor = sqLiteDatabase.rawQuery(sqlBuilder.toString(), null);
             if (null != voucherCursor) {
                 while (voucherCursor.moveToNext()) {
-                    final Voucher voucher = (Voucher) convertToRealm(voucherCursor, 0, 9, Voucher.class, realm);
+                    final Voucher voucher = (Voucher) ReflectionUtil.convertToRealm(voucherCursor, 0, 9, Voucher.class, realm);
                     voucher.setAmountList(buildCurrencyValueList(realm, voucherCursor.getDouble(10),
                             voucherCursor.getDouble(11), voucherCursor.getDouble(12)));
                     migrateVoucherEntries(sqLiteDatabase, voucher);
@@ -832,7 +820,7 @@ public class MigrationService extends IntentService {
             if (null != voucherCursor) {
                 RealmList<VoucherEntry> voucherEntries = new RealmList<>();
                 while (voucherCursor.moveToNext()) {
-                    final VoucherEntry voucherEntry = (VoucherEntry) convertToRealm(voucherCursor, 0, 4, VoucherEntry.class, realm);
+                    final VoucherEntry voucherEntry = (VoucherEntry) ReflectionUtil.convertToRealm(voucherCursor, 0, 4, VoucherEntry.class, realm);
                     voucherEntry.setAmount(buildCurrencyValueList(realm, voucherCursor.getDouble(5),
                             voucherCursor.getDouble(7), voucherCursor.getDouble(7)));
                     Log.d(TAG, "Loaded voucher entry: " + voucherEntry);
@@ -896,7 +884,7 @@ public class MigrationService extends IntentService {
             if (null != voucherCursor) {
                 RealmList<VoucherItem> voucherItems = new RealmList<>();
                 while (voucherCursor.moveToNext()) {
-                    final VoucherItem voucherItem = (VoucherItem) convertToRealm(voucherCursor, 0, 5, VoucherItem.class, realm);
+                    final VoucherItem voucherItem = (VoucherItem) ReflectionUtil.convertToRealm(voucherCursor, 0, 5, VoucherItem.class, realm);
                     int i = 6;
                     voucherItem.setRates(buildCurrencyValueList(realm, voucherCursor.getDouble(i++),
                             voucherCursor.getDouble(i++), voucherCursor.getDouble(i++)));
@@ -962,7 +950,7 @@ public class MigrationService extends IntentService {
             if (null != bhavEntryCursor) {
                 RealmList<BhavEntry> bhavEntries = new RealmList<>();
                 while (bhavEntryCursor.moveToNext()) {
-                    final BhavEntry bhavEntry = (BhavEntry) convertToRealm(bhavEntryCursor, 0, 5, BhavEntry.class, realm);
+                    final BhavEntry bhavEntry = (BhavEntry) ReflectionUtil.convertToRealm(bhavEntryCursor, 0, 5, BhavEntry.class, realm);
                     int i = 6;
                     bhavEntry.setDebitAmount(buildCurrencyValueList(realm, bhavEntryCursor.getDouble(i++),
                             bhavEntryCursor.getDouble(i++), bhavEntryCursor.getDouble(i++)));
@@ -999,94 +987,6 @@ public class MigrationService extends IntentService {
                 realm.close();
             }
         }
-
-    }
-
-    private Map<Class, Map<String, Method>> classFieldsMap = new HashMap<>();
-
-    private Map<String, Method> getFields(Class<?> destType) {
-        Map<String, Method> fieldMap = classFieldsMap.get(destType);
-        if(null == fieldMap) {
-            //load class fields using reflection
-            Method[] methods = destType.getDeclaredMethods();
-            fieldMap = new HashMap<>();
-            for (int i = 0; i < methods.length; i++) {
-                Method method = methods[i];
-                if (method.getName().startsWith("set") && method.getParameterTypes().length == 1) {
-                    fieldMap.put(method.getName().substring(3), method);
-                }
-            }
-            classFieldsMap.put(destType, fieldMap);
-        }
-        return fieldMap;
-    }
-
-    private RealmObject convertToRealm(Cursor cursor, int indexToStart, int indexToEnd, Class<?> destType, Realm realm) throws Exception {
-        if (!RealmObject.class.isAssignableFrom(destType)) {
-            Log.e(TAG, "Cannot convert " + destType.getName() +" to RealmObject");
-            return null;
-        }
-        Map<String, Method> fieldMap = getFields(destType);
-        //sqlite metadata
-        String[] columnNames = cursor.getColumnNames();
-        RealmObject destObj = null;
-        try {
-            destObj = (RealmObject) destType.newInstance();
-            for (int i = indexToStart; i <= indexToEnd; i++) {
-                try {
-                    Method field = fieldMap.get(columnNames[i]);
-                    Log.d(TAG, "columnName=" + columnNames[i] + " field=" + field);
-                    field.invoke(destObj, getDesiredObject(cursor, i, field.getParameterTypes()[0], realm));
-                } catch (Exception e) {
-                    Log.e(TAG, "Error setting field for column: " + columnNames[i] + " on desttype: " + destType.getName());
-                    throw e;
-                }
-            }
-            fieldMap.get("CreatedDate").invoke(destObj, new Date());
-            fieldMap.get("CreatedBy").invoke(destObj, SystemUtil.getDeviceId());
-            Log.d(TAG, "Loaded object: " + destObj + " of type: " + destType.getName());
-        } catch(Exception e) {
-            Log.e(TAG, "Error converting object of type " + destType.getName(), e);
-            throw e;
-        }
-        return destObj;
-    }
-
-    private Object getDesiredObject(Cursor cursor, int index, Class<?> fieldType, Realm realm) {
-        Object rv = null;
-        if (String.class.isAssignableFrom(fieldType)) {
-            rv = cursor.getString(index);
-        } else if (Double.class.isAssignableFrom(fieldType)) {
-            rv = cursor.getDouble(index);
-        } else if (Integer.class.isAssignableFrom(fieldType)) {
-            rv = cursor.getInt(index);
-        } else if (Long.class.isAssignableFrom(fieldType)) {
-            rv = cursor.getLong(index);
-        } else if (Date.class.isAssignableFrom(fieldType)) {
-            String dtStr = cursor.getString(index);
-            if (null != dtStr && !dtStr.trim().isEmpty()) {
-                try {
-                    rv = SHORT_DATE_FORMAT.parse(dtStr);
-                } catch (ParseException e) {
-                    e.printStackTrace();
-                }
-            }
-        } else if (Boolean.class.isAssignableFrom(fieldType)) {
-            rv = cursor.getInt(index) == 1 ? Boolean.TRUE : Boolean.FALSE;
-        } else if (AccountGroup.class.isAssignableFrom(fieldType)) {
-            rv = realm.where(AccountGroup.class).equalTo("id", cursor.getInt(index)).findFirst();
-        } else if(Product.class.isAssignableFrom(fieldType)) {
-            rv = realm.where(Product.class).equalTo("id", cursor.getInt(index)).findFirst();
-        } else if(Account.class.isAssignableFrom(fieldType)) {
-            rv = realm.where(Account.class).equalTo("id", cursor.getInt(index)).findFirst();
-        } else if(Unit.class.isAssignableFrom(fieldType)) {
-            rv = realm.where(Unit.class).equalTo("id", cursor.getInt(index)).findFirst();
-        } else if(ProductGroup.class.isAssignableFrom(fieldType)) {
-            rv = realm.where(ProductGroup.class).equalTo("id", cursor.getInt(index)).findFirst();
-        } else  {
-            Log.e(TAG, "No type found for field type: " + fieldType.getName());
-        }
-        return rv;
     }
 
     private Realm getRealm() {
