@@ -21,6 +21,8 @@ public class BhavEntry extends RealmObject {
     private Date bhavDate;
     private Boolean isDirty;
     private Boolean isDeleted;
+    private String createdBy;
+    private Date createdDate;
 
     public Integer getId() {
         return id;
@@ -84,5 +86,37 @@ public class BhavEntry extends RealmObject {
 
     public void setDeleted(Boolean deleted) {
         isDeleted = deleted;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public Date getCreatedDate() {
+        return createdDate;
+    }
+
+    public void setCreatedDate(Date createdDate) {
+        this.createdDate = createdDate;
+    }
+
+    @Override
+    public String toString() {
+        return "BhavEntry{" +
+                "id=" + id +
+                ", partyAccount=" + partyAccount +
+                ", debitAmount=" + debitAmount +
+                ", creditAmount=" + creditAmount +
+                ", type='" + type + '\'' +
+                ", bhavDate=" + bhavDate +
+                ", isDirty=" + isDirty +
+                ", isDeleted=" + isDeleted +
+                ", createdBy='" + createdBy + '\'' +
+                ", createdDate=" + createdDate +
+                '}';
     }
 }

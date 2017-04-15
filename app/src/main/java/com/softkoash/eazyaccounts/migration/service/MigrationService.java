@@ -32,13 +32,21 @@ import com.softkoash.eazyaccounts.util.RealmUtil;
 import com.softkoash.eazyaccounts.util.SystemUtil;
 
 import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import io.realm.Realm;
+import io.realm.RealmConfiguration;
 import io.realm.RealmList;
+import io.realm.RealmObject;
 import io.realm.RealmResults;
 
 public class MigrationService extends IntentService {
@@ -149,59 +157,46 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateItemData(SQLiteDatabase existingDb) throws MigrationException {
-        Log.d(TAG, "Called migrate Item data...");
+        Log.d(TAG, "Migrating Item data...");
         migrateProductGroupData(existingDb);
         migrateProductData(existingDb);
     }
 
     private void migrateProductData(SQLiteDatabase existingDb) throws MigrationException {
-        Log.d(TAG, "Called migrate Product data...");
+        Log.d(TAG, "Migrating Product data...");
         Cursor productDataCursor = null;
         Realm realm = null;
         try {
             realm = getRealm();
             StringBuilder sql = new StringBuilder();
-            sql.append(" select Id, Name, Remark, ");
-            sql.append(" PriceCurrency1, PriceCurrency2, PriceCurrency3, Unit,");
-            sql.append(" ExtraChargerate1, ExtraChargerate2, ExtraChargerate3, Under,");
-            sql.append(" IsDirty, IsDeleted, GrossQuantity, NettQuantity, GrossOpeningStock, NettOpeningStock ");
-            sql.append(" from Item where Item.IsGroup = 0 order by Item.Id");
+            sql.append(" select Id");
+            sql.append(", Name");
+            sql.append(", Remark as Remarks");
+            sql.append(", Unit");
+            sql.append(", Under as ProductGroup");
+            sql.append(", IsDirty as Dirty");
+            sql.append(", IsDeleted as Deleted");
+            sql.append(", GrossQuantity");
+            sql.append(", NettQuantity as NetQuantity");
+            sql.append(", GrossOpeningStock");
+            sql.append(", NettOpeningStock as NetOpeningStock");
+            sql.append(", PriceCurrency1");
+            sql.append(", PriceCurrency2");
+            sql.append(", PriceCurrency3");
+            sql.append(", ExtraChargerate1");
+            sql.append(", ExtraChargerate2");
+            sql.append(", ExtraChargerate3");
+            sql.append(" from Item");
+            sql.append(" where IsGroup = 0");
+            sql.append(" order by Id");
             productDataCursor = existingDb.rawQuery(sql.toString(), null);
             if (null != productDataCursor) {
                 while (productDataCursor.moveToNext()) {
-                    final Product product = new Product();
-
-                    product.setId(productDataCursor.getInt(0));
-                    product.setName(productDataCursor.getString(1));
-                    product.setRemarks(productDataCursor.getString(2));
-
-                    product.setPriceList(buildCurrencyValueList(realm, productDataCursor.getDouble(3), productDataCursor.getDouble(4), productDataCursor.getDouble(5)));
-
-                    //Find Unit
-                    String searchUnitData = productDataCursor.getString(6);
-                    RealmResults<Unit> unitRealmResult = realm.where(Unit.class).equalTo("name", searchUnitData).findAll();
-                    Unit unit = unitRealmResult.first();
-                    product.setUnit(unit);
-
-                    product.setExtraChargeRateList(buildCurrencyValueList(realm, productDataCursor.getDouble(7), productDataCursor.getDouble(8), productDataCursor.getDouble(9)));
-
-                    //Find Product Group
-                    int searchProductGroupId = productDataCursor.getInt(10);
-                    RealmResults<ProductGroup> productGroupResult = realm.where(ProductGroup.class).equalTo("id", searchProductGroupId).findAll();
-                    ProductGroup prodGroup = productGroupResult.first();
-                    product.setProductGroup(prodGroup);
-
-                    product.setDirty(productDataCursor.getInt(11) == 1 ? true : false);
-                    product.setDeleted(productDataCursor.getInt(12) == 1 ? true : false);
-                    product.setGrossQuantity(productDataCursor.getDouble(13));
-                    product.setNetQuantity(productDataCursor.getDouble(14));
-                    product.setGrossOpeningStock(productDataCursor.getDouble(15));
-                    product.setNetOpeningStock(productDataCursor.getDouble(16));
-                    product.setCreatedDate(new Date());
-                    product.setCreatedBy(SystemUtil.getDeviceId());
-                    product.setUpdatedDate(new Date());
-                    product.setUpdatedBy(SystemUtil.getDeviceId());
-
+                    final Product product = (Product) convertToRealm(productDataCursor, 0, 10, Product.class, realm);
+                    int i = 11;
+                    product.setPriceList(buildCurrencyValueList(realm, productDataCursor.getDouble(i++), productDataCursor.getDouble(i++), productDataCursor.getDouble(i++)));
+                    product.setExtraChargeRateList(buildCurrencyValueList(realm, productDataCursor.getDouble(i++), productDataCursor.getDouble(i++), productDataCursor.getDouble(i++)));
+                    Log.d(TAG, "Loaded product: " + product);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
                         public void execute(Realm realm) {
@@ -209,7 +204,7 @@ public class MigrationService extends IntentService {
                                 realm.copyToRealmOrUpdate(product);
                                 migrationStats.addProductCreated();
                             } catch (Exception ex) {
-                                Log.e(TAG, "Error while writing ProductGroup " + product, ex);
+                                Log.e(TAG, "Error while writing Product " + product, ex);
                                 throw ex;
                             }
                         }
@@ -230,25 +225,24 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateProductGroupData(SQLiteDatabase existingDb) throws MigrationException {
-        Log.d(TAG, "Called migrate ProductGroup data...");
+        Log.d(TAG, "Migrating ProductGroup data...");
         Cursor productGroupCursor = null;
         Realm realm = null;
         try {
-            String sql = "select Id, Name, Remark, IsDirty, IsDeleted from Item where Item.IsGroup = 1 Order by Id";
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("select Id");
+            sqlBuilder.append(", Name");
+            sqlBuilder.append(", Remark as Description");
+            sqlBuilder.append(", IsDirty as Dirty");
+            sqlBuilder.append(", IsDeleted as Deleted");
+            sqlBuilder.append(" from Item");
+            sqlBuilder.append(" where IsGroup = 1");
+            sqlBuilder.append(" Order by Id");
             realm = getRealm();
-            productGroupCursor = existingDb.rawQuery(sql, null);
+            productGroupCursor = existingDb.rawQuery(sqlBuilder.toString(), null);
             if (null != productGroupCursor) {
                 while (productGroupCursor.moveToNext()) {
-                    final ProductGroup productGroup = new ProductGroup();
-                    productGroup.setId(productGroupCursor.getInt(0));
-                    productGroup.setName(productGroupCursor.getString(1));
-                    productGroup.setDescription(productGroupCursor.getString(2));
-                    productGroup.setDirty(productGroupCursor.getInt(3) == 1 ? true : false);
-                    productGroup.setDeleted(productGroupCursor.getInt(4) == 1 ? true : false);
-                    productGroup.setCreatedDate(new Date());
-                    productGroup.setCreatedBy(SystemUtil.getDeviceId());
-                    productGroup.setUpdatedDate(new Date());
-                    productGroup.setUpdatedBy(SystemUtil.getDeviceId());
+                    final ProductGroup productGroup = (ProductGroup) convertToRealm(productGroupCursor, 0, productGroupCursor.getColumnCount() - 1, ProductGroup.class, realm);
                     Log.d(TAG, "Loaded ProductGroup : " + productGroup);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -278,28 +272,25 @@ public class MigrationService extends IntentService {
     }
 
     private Company migrateCompanyData(SQLiteDatabase existingDb) throws MigrationException {
-        Log.d(TAG, "Called migrate company data...");
+        Log.d(TAG, "Migrating company data...");
         Cursor companiesCursor = null;
         Company rvCompany = null;
         Realm realm = null;
         try {
             realm = getRealm();
-            companiesCursor = existingDb.rawQuery("SELECT Id, CompanyName, Version, IsDirty, IsDeleted FROM COMPANYINFO", null);
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("SELECT Id as Id");
+            sqlBuilder.append(", CompanyName as Name");
+            sqlBuilder.append(", CompanyName as Code");
+            sqlBuilder.append(", Version as AppVersion");
+            sqlBuilder.append(", IsDirty as Dirty");
+            sqlBuilder.append(", IsDeleted as Deleted");
+            sqlBuilder.append(" FROM COMPANYINFO");
+            companiesCursor = existingDb.rawQuery(sqlBuilder.toString(), null);
             if (null != companiesCursor) {
                 //NB: there will be only one company in existing sqlite database...
                 if (companiesCursor.moveToNext()) {
-                    int i = 0;
-                    final Company company = new Company();
-                    company.setId(companiesCursor.getInt(i++));
-                    String companyName = companiesCursor.getString(i++);
-                    company.setName(companyName);
-                    company.setCode(companyName);
-                    company.setAppVersion(companiesCursor.getString(i++));
-                    company.setDirty(companiesCursor.getInt(i++) == 1 ? true : false);
-                    company.setDeleted(companiesCursor.getInt(i++) == 1 ? true : false);
-                    company.setCreatedDate(new Date());
-                    company.setCreatedBy(SystemUtil.getDeviceId());
-                    Log.d(TAG, "Loaded company: " + company);
+                    final Company company = (Company) convertToRealm(companiesCursor, 0, companiesCursor.getColumnCount() - 1, Company.class, realm);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
                         public void execute(Realm realm) {
@@ -330,32 +321,29 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateConfigurationData(SQLiteDatabase existingDb) throws MigrationException {
-        Log.d(TAG, "Called migrate configuration data...");
+        Log.d(TAG, "Migrating configuration data...");
         Cursor configurationCursor = null;
         Realm realm = null;
         try {
             realm = getRealm();
-            Log.d(TAG, "Realm file path:" + realm.getPath());
-            String rawQuery = "select ConfigurationID, Name, Category, Value, IsDirty, IsDeleted, ModifiedTime from Configuration";
-            configurationCursor = existingDb.rawQuery(rawQuery, null);
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("select ConfigurationID as Id");
+            sqlBuilder.append(", Name");
+            sqlBuilder.append(", Category");
+            sqlBuilder.append(", Value");
+            sqlBuilder.append(", IsDirty as Dirty");
+            sqlBuilder.append(", IsDeleted as Deleted");
+            sqlBuilder.append(", ModifiedTime as UpdateDate");
+            sqlBuilder.append(" from Configuration");
+            configurationCursor = existingDb.rawQuery(sqlBuilder.toString(), null);
             if (null != configurationCursor) {
                 while (configurationCursor.moveToNext()) {
-                    int i = 0;
-                    final Configuration configuration = new Configuration();
-                    configuration.setId(configurationCursor.getInt(i++));
-                    configuration.setName(configurationCursor.getString(i++));
-                    String category = configurationCursor.getString(i++);
-                    configuration.setCategory(category);
-                    configuration.setValue(configurationCursor.getString(i++));
-                    configuration.setDirty((configurationCursor.getInt(i++) == 1 ? true : false));
-                    configuration.setDeleted((configurationCursor.getInt(i++) == 1 ? true : false));
-                    String modifiedTimeStr = configurationCursor.getString(i++);
+                    final Configuration configuration = (Configuration) convertToRealm(configurationCursor, 0, 5, Configuration.class, realm);
+                    String modifiedTimeStr = configurationCursor.getString(6);
                     if (modifiedTimeStr != null && !modifiedTimeStr.isEmpty()) {
                         Date modifiedTime = LONG_DATE_FORMAT.parse(modifiedTimeStr);
                         configuration.setUpdateDate(modifiedTime);
                     }
-                    configuration.setCreatedDate(new Date());
-                    configuration.setCreatedBy(SystemUtil.getDeviceId());
                     if ("C1".equals(configuration.getName()) || "SC1".equals(configuration.getName()) || "D1".equals(configuration.getName())
                             || "C2".equals(configuration.getName()) || "SC2".equals(configuration.getName()) || "D2".equals(configuration.getName())
                             || "C3".equals(configuration.getName()) || "SC3".equals(configuration.getName()) || "D3".equals(configuration.getName())) {
@@ -407,7 +395,7 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateCurrencyData(SQLiteDatabase existingDb) throws MigrationException {
-        Log.d(TAG, "Called migrate currency data...");
+        Log.d(TAG, "Migrating currency data...");
         Cursor currencyCursor = null;
         Realm realm = null;
         try {
@@ -451,25 +439,23 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateUnitData(SQLiteDatabase existingDb) throws MigrationException {
-        Log.d(TAG, "Called migrate unit data...");
+        Log.d(TAG, "Migrating unit data...");
         Cursor unitCursor = null;
         Realm realm = null;
         try {
             realm = getRealm();
-            unitCursor = existingDb.rawQuery("select Id, Name, ShortName, IsDirty, IsDeleted, UnitPrecision from Unit", null);
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("select Id");
+            sqlBuilder.append(", Name");
+            sqlBuilder.append(", ShortName as Code");
+            sqlBuilder.append(", IsDirty as Dirty");
+            sqlBuilder.append(", IsDeleted as Deleted");
+            sqlBuilder.append(", UnitPrecision as DecimalScale");
+            sqlBuilder.append(" from Unit");
+            unitCursor = existingDb.rawQuery(sqlBuilder.toString(), null);
             if (null != unitCursor) {
                 while (unitCursor.moveToNext()) {
-                    int i = 0;
-                    final Unit unit = new Unit();
-                    String deviceId = SystemUtil.getDeviceId();
-                    unit.setId(unitCursor.getInt(i++));
-                    unit.setName(unitCursor.getString(i++));
-                    unit.setCode(unitCursor.getString(i++));
-                    unit.setDirty((unitCursor.getInt(i++) == 1 ? true : false));
-                    unit.setDeleted((unitCursor.getInt(i++) == 1 ? true : false));
-                    unit.setDecimalScale(unitCursor.getInt(i++));
-                    unit.setCreatedDate(new Date());
-                    unit.setCreatedBy(deviceId);
+                    final Unit unit = (Unit) convertToRealm(unitCursor, 0, unitCursor.getColumnCount() - 1, Unit.class, realm);
                     Log.d(TAG, "Loaded unit: " + unit);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -499,21 +485,22 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateLedgerGroups(SQLiteDatabase sqLiteDatabase) throws MigrationException {
+        Log.d(TAG, "Migrating ledger group data...");
         Cursor ledgerCursor = null;
         Realm realm = null;
         try {
             realm = getRealm();
-            ledgerCursor = sqLiteDatabase.rawQuery("SELECT Id, Name, IsDirty, IsDeleted FROM Ledger where IsGroup = 1", null);
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("SELECT Id");
+            sqlBuilder.append(", Name");
+            sqlBuilder.append(", IsDirty as Dirty");
+            sqlBuilder.append(", IsDeleted as Deleted");
+            sqlBuilder.append(" FROM Ledger");
+            sqlBuilder.append(" where IsGroup = 1");
+            ledgerCursor = sqLiteDatabase.rawQuery(sqlBuilder.toString(), null);
             if (null != ledgerCursor) {
                 while (ledgerCursor.moveToNext()) {
-                    int i = 0;
-                    final AccountGroup accountGroup = new AccountGroup();
-                    accountGroup.setId(ledgerCursor.getInt(i++));
-                    accountGroup.setName(ledgerCursor.getString(i++));
-                    accountGroup.setDirty(ledgerCursor.getInt(i++) == 1 ? true : false);
-                    accountGroup.setDeleted(ledgerCursor.getInt(i++) == 1 ? true : false);
-                    accountGroup.setCreatedDate(new Date());
-                    accountGroup.setCreatedBy(SystemUtil.getDeviceId());
+                    final AccountGroup accountGroup = (AccountGroup) convertToRealm(ledgerCursor, 0, ledgerCursor.getColumnCount() - 1, AccountGroup.class, realm);
                     Log.d(TAG, "Loaded account group: " + accountGroup);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -543,42 +530,42 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateLedgerData(SQLiteDatabase sqLiteDatabase) throws MigrationException {
-        // Ledger -> Account
-        Log.d(TAG, "Called migrate ledger data...");
         // first add the groups...
         migrateLedgerGroups(sqLiteDatabase);
+
+        // Ledger -> Account
+        Log.d(TAG, "Migrating ledger data...");
         Cursor ledgerCursor = null;
         Realm realm = null;
         try {
             realm = getRealm();
-            ledgerCursor = sqLiteDatabase.rawQuery("SELECT Id, Name, IsDirty, IsDeleted, Under, IsSystem" +
-                    ", OpeningBalanceCurrency1, OpeningBalanceCurrency2, OpeningBalanceCurrency3 " +
-                    ", Locality, Address, City, PrimaryMobileNo, CreditLimitLevel1, CreditLimitLevel2 " +
-                    " FROM Ledger where IsLedger = 1 ", null);
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("SELECT Id");
+            sqlBuilder.append(", Name");
+            sqlBuilder.append(", IsDirty as Dirty");
+            sqlBuilder.append(", IsDeleted as Deleted");
+            sqlBuilder.append(", Under as AccountGroup");
+            sqlBuilder.append(", IsSystem as CompanyAccount");
+            sqlBuilder.append(", OpeningBalanceCurrency1");
+            sqlBuilder.append(", OpeningBalanceCurrency2");
+            sqlBuilder.append(", OpeningBalanceCurrency3");
+            sqlBuilder.append(", Locality");
+            sqlBuilder.append(", Address");
+            sqlBuilder.append(", City");
+            sqlBuilder.append(", PrimaryMobileNo as PrimaryMobile");
+            sqlBuilder.append(", CreditLimitLevel1 as CreditLimit1");
+            sqlBuilder.append(", CreditLimitLevel2 as CreditLimit2");
+            sqlBuilder.append(" FROM Ledger");
+            sqlBuilder.append(" where IsLedger = 1 ");
+            ledgerCursor = sqLiteDatabase.rawQuery(sqlBuilder.toString(), null);
             if (null != ledgerCursor) {
                 //NB: there will be only one company in existing sqlite database...
                 while (ledgerCursor.moveToNext()) {
-                    int i = 0;
-                    final Account account = new Account();
-                    account.setId(ledgerCursor.getInt(i++));
-                    account.setName(ledgerCursor.getString(i++));
-                    account.setDirty(ledgerCursor.getInt(i++) == 1 ? true : false);
-                    account.setDeleted(ledgerCursor.getInt(i++) == 1 ? true : false);
-                    account.setCreatedDate(new Date());
-                    account.setCreatedBy(SystemUtil.getDeviceId());
+                    final Account account = (Account) convertToRealm(ledgerCursor, 0, 5, Account.class, realm);
+                    account.setOpeningBalances(buildCurrencyValueList(realm, ledgerCursor.getDouble(6),
+                            ledgerCursor.getDouble(7), ledgerCursor.getDouble(8)));
 
-                    AccountGroup accountGroup = realm.where(AccountGroup.class).equalTo("id", ledgerCursor.getInt(i++)).findFirst();
-                    account.setGroup(accountGroup);
-                    account.setCompanyAccount(ledgerCursor.getInt(i++) == 1 ? true : false);
-
-                    account.setOpeningBalances(buildCurrencyValueList(realm, ledgerCursor.getDouble(i++),
-                            ledgerCursor.getDouble(i++), ledgerCursor.getDouble(i++)));
-
-                    final Contact contact = new Contact();
-                    contact.setLocality(ledgerCursor.getString(i++));
-                    contact.setAddress(ledgerCursor.getString(i++));
-                    contact.setCity(ledgerCursor.getString(i++));
-                    contact.setPrimaryMobile(ledgerCursor.getString(i++));
+                    final Contact contact = (Contact) convertToRealm(ledgerCursor, 9, 12, Contact.class, realm);
                     Log.d(TAG, "Loaded contact: " + contact);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -595,11 +582,7 @@ public class MigrationService extends IntentService {
                     });
                     account.setContact(contact);
 
-                    final CreditInfo creditInfo = new CreditInfo();
-                    //for now there is no such value defined!
-                    creditInfo.setPeriodInDays(Integer.MAX_VALUE);
-                    creditInfo.setCreditLimit1(ledgerCursor.getDouble(i++));
-                    creditInfo.setCreditLimit2(ledgerCursor.getDouble(i++));
+                    final CreditInfo creditInfo = (CreditInfo) convertToRealm(ledgerCursor, 13, 14, CreditInfo.class, realm);
                     Log.d(TAG, "Loaded credit info: " + creditInfo);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -649,11 +632,18 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateLedgerBalances(SQLiteDatabase sqLiteDatabase, Account account) throws MigrationException {
+        Log.d(TAG, "Migrating ledger balances...");
         Cursor ledgerCursor = null;
         Realm realm = null;
         try {
             realm = getRealm();
-            ledgerCursor = sqLiteDatabase.rawQuery("SELECT BalanceCurrency1, BalanceCurrency2, BalanceCurrency3 FROM LedgerBalance where LedgerID = " + account.getId(), null);
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("SELECT BalanceCurrency1");
+            sqlBuilder.append(", BalanceCurrency2");
+            sqlBuilder.append(", BalanceCurrency3");
+            sqlBuilder.append(" FROM LedgerBalance");
+            sqlBuilder.append(" where LedgerID = " + account.getId());
+            ledgerCursor = sqLiteDatabase.rawQuery(sqlBuilder.toString(), null);
             if (null != ledgerCursor) {
                 //Only one balance for a given account
                 if (ledgerCursor.moveToNext()) {
@@ -663,8 +653,8 @@ public class MigrationService extends IntentService {
                 }
             }
         } catch (Exception ex) {
-            Log.e(TAG, "Error migrating the leger group table", ex);
-            throw new MigrationException("Error migrating the leger group table", ex);
+            Log.e(TAG, "Error migrating the leger balances table", ex);
+            throw new MigrationException("Error migrating the leger balances table", ex);
         } finally {
             if (ledgerCursor != null) {
                 ledgerCursor.close();
@@ -676,24 +666,35 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateLedgerPriceList(SQLiteDatabase sqLiteDatabase, Account account) throws MigrationException {
+        Log.d(TAG, "Migrating ledger price list...");
         Cursor ledgerCursor = null;
         Realm realm = null;
         try {
             realm = getRealm();
-            ledgerCursor = sqLiteDatabase.rawQuery("SELECT Id, ItemID, PriceCurrency1, PriceCurrency2, PriceCurrency3, ExtraChargerate1, ExtraChargerate2, ExtraChargerate3, IsDirty, IsDeleted FROM LedgerPriceList where LedgerID = " + account.getId(), null);
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("SELECT Id");
+            sqlBuilder.append(", ItemID as Product");
+            sqlBuilder.append(", IsDirty as Dirty");
+            sqlBuilder.append(", IsDeleted as Deleted");
+            sqlBuilder.append(", PriceCurrency1");
+            sqlBuilder.append(", PriceCurrency2");
+            sqlBuilder.append(", PriceCurrency3");
+            sqlBuilder.append(", ExtraChargerate1");
+            sqlBuilder.append(", ExtraChargerate2");
+            sqlBuilder.append(", ExtraChargerate3");
+            sqlBuilder.append(" FROM LedgerPriceList");
+            sqlBuilder.append(" where LedgerID = " + account.getId());
+            ledgerCursor = sqLiteDatabase.rawQuery(sqlBuilder.toString(), null);
             if (null != ledgerCursor) {
                 RealmList<ProductSubscription> productSubscriptions = new RealmList<>();
                 while (ledgerCursor.moveToNext()) {
-                    int i = 0;
-                    final ProductSubscription productSubscription = new ProductSubscription();
-                    productSubscription.setId(ledgerCursor.getInt(i++));
-                    productSubscription.setProduct(realm.where(Product.class).equalTo("id", ledgerCursor.getInt(i++)).findFirst());
+                    final ProductSubscription productSubscription = (ProductSubscription) convertToRealm(ledgerCursor, 0, 3, ProductSubscription.class, realm);
+                    int i = 4;
                     productSubscription.setRates(buildCurrencyValueList(realm, ledgerCursor.getDouble(i++),
                             ledgerCursor.getDouble(i++), ledgerCursor.getDouble(i++)));
                     productSubscription.setExtraRates(buildCurrencyValueList(realm, ledgerCursor.getDouble(i++),
                             ledgerCursor.getDouble(i++), ledgerCursor.getDouble(i++)));
-                    productSubscription.setCreatedDate(new Date());
-                    productSubscription.setCreatedBy(SystemUtil.getDeviceId());
+
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
                         public void execute(Realm realm) {
@@ -753,37 +754,32 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateVoucherData(SQLiteDatabase sqLiteDatabase) throws MigrationException {
+        Log.d(TAG, "Migrating voucher data...");
         Cursor voucherCursor = null;
         Realm realm = null;
         try {
             realm = getRealm();
-            voucherCursor = sqLiteDatabase.rawQuery("SELECT Id, Type, Date, AmountCurrency1, AmountCurrency2, AmountCurrency3" +
-                    ", Narration, PartyLedgerID, VoucherLedgerID, IsFreeze, FreezeDate, FreezeIn, IsDirty, IsDeleted " +
-                    " FROM Voucher", null);
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("SELECT Id");
+            sqlBuilder.append(", Type as VoucherType");
+            sqlBuilder.append(", Date as VoucherDate");
+            sqlBuilder.append(", Narration");
+            sqlBuilder.append(", PartyLedgerID as PartyAccount");
+            sqlBuilder.append(", VoucherLedgerID as VoucherAccount");
+            sqlBuilder.append(", IsFreeze as Freezed");
+            sqlBuilder.append(", FreezeDate as FreezeDate");
+            sqlBuilder.append(", IsDirty as Dirty");
+            sqlBuilder.append(", IsDeleted as Deleted");
+            sqlBuilder.append(", AmountCurrency1");
+            sqlBuilder.append(", AmountCurrency2");
+            sqlBuilder.append(", AmountCurrency3");
+            sqlBuilder.append(" FROM Voucher");
+            voucherCursor = sqLiteDatabase.rawQuery(sqlBuilder.toString(), null);
             if (null != voucherCursor) {
                 while (voucherCursor.moveToNext()) {
-                    int i = 0;
-                    final Voucher voucher = new Voucher();
-                    voucher.setId(voucherCursor.getInt(i++));
-                    voucher.setVoucherType(voucherCursor.getString(i++));
-                    String voucherDateStr = voucherCursor.getString(i++);
-                    if (null != voucherDateStr && !voucherDateStr.trim().isEmpty()) {
-                        voucher.setVoucherDate(SHORT_DATE_FORMAT.parse(voucherDateStr));
-                    }
-                    voucher.setAmountList(buildCurrencyValueList(realm, voucherCursor.getDouble(i++),
-                            voucherCursor.getDouble(i++), voucherCursor.getDouble(i++)));
-                    voucher.setNarration(voucherCursor.getString(i++));
-                    voucher.setPartyAccount(realm.where(Account.class).equalTo("id", voucherCursor.getInt(i++)).findFirst());
-                    voucher.setVoucherAccount(realm.where(Account.class).equalTo("id", voucherCursor.getInt(i++)).findFirst());
-                    voucher.setFreezed(voucherCursor.getInt(i++) == 1 ? true : false);
-                    String freezeDateStr = voucherCursor.getString(i++);
-                    if (null != freezeDateStr && !freezeDateStr.trim().isEmpty()) {
-                        voucher.setFreezeDate(SHORT_DATE_FORMAT.parse(freezeDateStr));
-                    }
-                    voucher.setDirty(voucherCursor.getInt(i++) == 1 ? true : false);
-                    voucher.setDeleted(voucherCursor.getInt(i++) == 1 ? true : false);
-                    voucher.setCreatedDate(new Date());
-                    voucher.setCreatedBy(SystemUtil.getDeviceId());
+                    final Voucher voucher = (Voucher) convertToRealm(voucherCursor, 0, 9, Voucher.class, realm);
+                    voucher.setAmountList(buildCurrencyValueList(realm, voucherCursor.getDouble(10),
+                            voucherCursor.getDouble(11), voucherCursor.getDouble(12)));
                     migrateVoucherEntries(sqLiteDatabase, voucher);
                     migrateVoucherItems(sqLiteDatabase, voucher);
                     migrateBhavEntry(sqLiteDatabase, voucher);
@@ -816,26 +812,29 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateVoucherEntries(SQLiteDatabase sqLiteDatabase, Voucher voucher) throws MigrationException {
+        Log.d(TAG, "Migrating voucher entries for voucher: " + voucher.getId());
         Cursor voucherCursor = null;
         Realm realm = null;
         try {
             realm = getRealm();
-            voucherCursor = sqLiteDatabase.rawQuery("SELECT Id, Type, LedgerID, AmountCurrency1, AmountCurrency2, AmountCurrency3" +
-                    ", IsDirty, IsDeleted FROM VoucherEntry where VoucherID = " + voucher.getId(), null);
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("SELECT Id");
+            sqlBuilder.append(", Type");
+            sqlBuilder.append(", LedgerID as Account");
+            sqlBuilder.append(", IsDirty as Dirty");
+            sqlBuilder.append(", IsDeleted as Deleted");
+            sqlBuilder.append(", AmountCurrency1");
+            sqlBuilder.append(", AmountCurrency2");
+            sqlBuilder.append(", AmountCurrency3");
+            sqlBuilder.append(" FROM VoucherEntry");
+            sqlBuilder.append(" where VoucherID = " + voucher.getId());
+            voucherCursor = sqLiteDatabase.rawQuery(sqlBuilder.toString(), null);
             if (null != voucherCursor) {
                 RealmList<VoucherEntry> voucherEntries = new RealmList<>();
                 while (voucherCursor.moveToNext()) {
-                    int i = 0;
-                    final VoucherEntry voucherEntry = new VoucherEntry();
-                    voucherEntry.setId(voucherCursor.getInt(i++));
-                    voucherEntry.setType(voucherCursor.getString(i++));
-                    voucherEntry.setAccount(realm.where(Account.class).equalTo("id", voucherCursor.getInt(i++)).findFirst());
-                    voucherEntry.setAmount(buildCurrencyValueList(realm, voucherCursor.getDouble(i++),
-                            voucherCursor.getDouble(i++), voucherCursor.getDouble(i++)));
-                    voucherEntry.setDirty(voucherCursor.getInt(i++) == 1 ? true : false);
-                    voucherEntry.setDeleted(voucherCursor.getInt(i++) == 1 ? true : false);
-                    voucherEntry.setCreatedDate(new Date());
-                    voucherEntry.setCreatedBy(SystemUtil.getDeviceId());
+                    final VoucherEntry voucherEntry = (VoucherEntry) convertToRealm(voucherCursor, 0, 4, VoucherEntry.class, realm);
+                    voucherEntry.setAmount(buildCurrencyValueList(realm, voucherCursor.getDouble(5),
+                            voucherCursor.getDouble(7), voucherCursor.getDouble(7)));
                     Log.d(TAG, "Loaded voucher entry: " + voucherEntry);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -870,34 +869,41 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateVoucherItems(SQLiteDatabase sqLiteDatabase, Voucher voucher) throws MigrationException {
+        Log.d(TAG, "Migrating voucher items for voucher: " + voucher.getId());
         Cursor voucherCursor = null;
         Realm realm = null;
         try {
             realm = getRealm();
-            voucherCursor = sqLiteDatabase.rawQuery("SELECT ItemID, Quantity, LessQuantity" +
-                    ", Rate1, Rate2, Rate3, ExtraChargeQuantity, ExtraChargeRate1, ExtraChargeRate2" +
-                    ", ExtraChargeRate3, Total1, Total2, Total3, IsDirty, IsDeleted" +
-                    " FROM VoucherItem where VoucherID = " + voucher.getId(), null);
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("SELECT ItemID as Product");
+            sqlBuilder.append(", Quantity");
+            sqlBuilder.append(", LessQuantity");
+            sqlBuilder.append(", ExtraChargeQuantity");
+            sqlBuilder.append(", IsDirty as Dirty");
+            sqlBuilder.append(", IsDeleted as Deleted");
+            sqlBuilder.append(", Rate1");
+            sqlBuilder.append(", Rate2");
+            sqlBuilder.append(", Rate3");
+            sqlBuilder.append(", ExtraChargeRate1");
+            sqlBuilder.append(", ExtraChargeRate2");
+            sqlBuilder.append(", ExtraChargeRate3");
+            sqlBuilder.append(", Total1");
+            sqlBuilder.append(", Total2");
+            sqlBuilder.append(", Total3");
+            sqlBuilder.append(" FROM VoucherItem");
+            sqlBuilder.append(" where VoucherID = " + voucher.getId());
+            voucherCursor = sqLiteDatabase.rawQuery(sqlBuilder.toString(), null);
             if (null != voucherCursor) {
                 RealmList<VoucherItem> voucherItems = new RealmList<>();
                 while (voucherCursor.moveToNext()) {
-                    int i = 0;
-                    final VoucherItem voucherItem = new VoucherItem();
-                    voucherItem.setProduct(realm.where(Product.class).equalTo("id", voucherCursor.getInt(i++)).findFirst());
-                    ;
-                    voucherItem.setQuantity(voucherCursor.getDouble(i++));
-                    voucherItem.setLessQuantity(voucherCursor.getDouble(i++));
+                    final VoucherItem voucherItem = (VoucherItem) convertToRealm(voucherCursor, 0, 5, VoucherItem.class, realm);
+                    int i = 6;
                     voucherItem.setRates(buildCurrencyValueList(realm, voucherCursor.getDouble(i++),
                             voucherCursor.getDouble(i++), voucherCursor.getDouble(i++)));
-                    voucherItem.setExtraChargeQuantity(voucherCursor.getDouble(i++));
                     voucherItem.setExtraCharges(buildCurrencyValueList(realm, voucherCursor.getDouble(i++),
                             voucherCursor.getDouble(i++), voucherCursor.getDouble(i++)));
                     voucherItem.setTotals(buildCurrencyValueList(realm, voucherCursor.getDouble(i++),
                             voucherCursor.getDouble(i++), voucherCursor.getDouble(i++)));
-                    voucherItem.setDirty(voucherCursor.getInt(i++) == 1 ? true : false);
-                    voucherItem.setDeleted(voucherCursor.getInt(i++) == 1 ? true : false);
-                    voucherItem.setCreatedDate(new Date());
-                    voucherItem.setCreatedBy(SystemUtil.getDeviceId());
                     Log.d(TAG, "Loaded voucher item: " + voucherItem);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -930,38 +936,38 @@ public class MigrationService extends IntentService {
     }
 
     private void migrateBhavEntry(SQLiteDatabase existingDb, Voucher voucher) throws MigrationException {
-        Log.d(TAG, "Called migrate bhaventry data...");
+        Log.d(TAG, "Migrating bhaventry for voucher: " + voucher.getId());
         Cursor bhavEntryCursor = null;
         Realm realm = null;
         try {
             realm = getRealm();
             StringBuilder sql = new StringBuilder();
-            sql.append(" Select Id, PartyAccountID,");
-            sql.append("        DebitAmount1, DebitAmount2, DebitAmount3,");
-            sql.append("        CreditAmount1, CreditAmount2, CreditAmount3,");
-            sql.append("        BhavType, Date, IsDirty, IsDeleted ");
-            sql.append(" from bhaventry where VoucherId = " + voucher.getId());
-            sql.append("  order by Id");
+            sql.append("Select Id");
+            sql.append(", PartyAccountID as PartyAccount");
+            sql.append(", BhavType as Type");
+            sql.append(", Date as BhavDate");
+            sql.append(", IsDirty as Dirty");
+            sql.append(", IsDeleted as Deleted");
+            sql.append(", DebitAmount1");
+            sql.append(", DebitAmount2");
+            sql.append(", DebitAmount3");
+            sql.append(", CreditAmount1");
+            sql.append(", CreditAmount2");
+            sql.append(", CreditAmount3");
+            sql.append(" from bhaventry");
+            sql.append(" where VoucherId = " + voucher.getId());
+            sql.append(" order by Id");
 
             bhavEntryCursor = existingDb.rawQuery(sql.toString(), null);
             if (null != bhavEntryCursor) {
                 RealmList<BhavEntry> bhavEntries = new RealmList<>();
                 while (bhavEntryCursor.moveToNext()) {
-                    final BhavEntry bhavEntry = new BhavEntry();
-                    int i = 0;
-                    bhavEntry.setId(bhavEntryCursor.getInt(i++));
-                    bhavEntry.setPartyAccount(realm.where(Account.class).equalTo("id", bhavEntryCursor.getInt(i++)).findFirst());
+                    final BhavEntry bhavEntry = (BhavEntry) convertToRealm(bhavEntryCursor, 0, 5, BhavEntry.class, realm);
+                    int i = 6;
                     bhavEntry.setDebitAmount(buildCurrencyValueList(realm, bhavEntryCursor.getDouble(i++),
                             bhavEntryCursor.getDouble(i++), bhavEntryCursor.getDouble(i++)));
                     bhavEntry.setCreditAmount(buildCurrencyValueList(realm, bhavEntryCursor.getDouble(i++),
                             bhavEntryCursor.getDouble(i++), bhavEntryCursor.getDouble(i++)));
-                    bhavEntry.setType(bhavEntryCursor.getString(i++));
-                    String bhavDateStr = bhavEntryCursor.getString(i++);
-                    if (null != bhavDateStr && !bhavDateStr.trim().isEmpty()) {
-                        bhavEntry.setBhavDate(SHORT_DATE_FORMAT.parse(bhavDateStr));
-                    }
-                    bhavEntry.setDirty(bhavEntryCursor.getInt(i++) == 1 ? true : false);
-                    bhavEntry.setDeleted(bhavEntryCursor.getInt(i++) == 1 ? true : false);
                     Log.d(TAG, "Loaded BhavEntry: " + bhavEntry);
                     realm.executeTransaction(new Realm.Transaction() {
                         @Override
@@ -994,6 +1000,93 @@ public class MigrationService extends IntentService {
             }
         }
 
+    }
+
+    private Map<Class, Map<String, Method>> classFieldsMap = new HashMap<>();
+
+    private Map<String, Method> getFields(Class<?> destType) {
+        Map<String, Method> fieldMap = classFieldsMap.get(destType);
+        if(null == fieldMap) {
+            //load class fields using reflection
+            Method[] methods = destType.getDeclaredMethods();
+            fieldMap = new HashMap<>();
+            for (int i = 0; i < methods.length; i++) {
+                Method method = methods[i];
+                if (method.getName().startsWith("set") && method.getParameterTypes().length == 1) {
+                    fieldMap.put(method.getName().substring(3), method);
+                }
+            }
+            classFieldsMap.put(destType, fieldMap);
+        }
+        return fieldMap;
+    }
+
+    private RealmObject convertToRealm(Cursor cursor, int indexToStart, int indexToEnd, Class<?> destType, Realm realm) throws Exception {
+        if (!RealmObject.class.isAssignableFrom(destType)) {
+            Log.e(TAG, "Cannot convert " + destType.getName() +" to RealmObject");
+            return null;
+        }
+        Map<String, Method> fieldMap = getFields(destType);
+        //sqlite metadata
+        String[] columnNames = cursor.getColumnNames();
+        RealmObject destObj = null;
+        try {
+            destObj = (RealmObject) destType.newInstance();
+            for (int i = indexToStart; i <= indexToEnd; i++) {
+                try {
+                    Method field = fieldMap.get(columnNames[i]);
+                    Log.d(TAG, "columnName=" + columnNames[i] + " field=" + field);
+                    field.invoke(destObj, getDesiredObject(cursor, i, field.getParameterTypes()[0], realm));
+                } catch (Exception e) {
+                    Log.e(TAG, "Error setting field for column: " + columnNames[i] + " on desttype: " + destType.getName());
+                    throw e;
+                }
+            }
+            fieldMap.get("CreatedDate").invoke(destObj, new Date());
+            fieldMap.get("CreatedBy").invoke(destObj, SystemUtil.getDeviceId());
+            Log.d(TAG, "Loaded object: " + destObj + " of type: " + destType.getName());
+        } catch(Exception e) {
+            Log.e(TAG, "Error converting object of type " + destType.getName(), e);
+            throw e;
+        }
+        return destObj;
+    }
+
+    private Object getDesiredObject(Cursor cursor, int index, Class<?> fieldType, Realm realm) {
+        Object rv = null;
+        if (String.class.isAssignableFrom(fieldType)) {
+            rv = cursor.getString(index);
+        } else if (Double.class.isAssignableFrom(fieldType)) {
+            rv = cursor.getDouble(index);
+        } else if (Integer.class.isAssignableFrom(fieldType)) {
+            rv = cursor.getInt(index);
+        } else if (Long.class.isAssignableFrom(fieldType)) {
+            rv = cursor.getLong(index);
+        } else if (Date.class.isAssignableFrom(fieldType)) {
+            String dtStr = cursor.getString(index);
+            if (null != dtStr && !dtStr.trim().isEmpty()) {
+                try {
+                    rv = SHORT_DATE_FORMAT.parse(dtStr);
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                }
+            }
+        } else if (Boolean.class.isAssignableFrom(fieldType)) {
+            rv = cursor.getInt(index) == 1 ? Boolean.TRUE : Boolean.FALSE;
+        } else if (AccountGroup.class.isAssignableFrom(fieldType)) {
+            rv = realm.where(AccountGroup.class).equalTo("id", cursor.getInt(index)).findFirst();
+        } else if(Product.class.isAssignableFrom(fieldType)) {
+            rv = realm.where(Product.class).equalTo("id", cursor.getInt(index)).findFirst();
+        } else if(Account.class.isAssignableFrom(fieldType)) {
+            rv = realm.where(Account.class).equalTo("id", cursor.getInt(index)).findFirst();
+        } else if(Unit.class.isAssignableFrom(fieldType)) {
+            rv = realm.where(Unit.class).equalTo("id", cursor.getInt(index)).findFirst();
+        } else if(ProductGroup.class.isAssignableFrom(fieldType)) {
+            rv = realm.where(ProductGroup.class).equalTo("id", cursor.getInt(index)).findFirst();
+        } else  {
+            Log.e(TAG, "No type found for field type: " + fieldType.getName());
+        }
+        return rv;
     }
 
     private Realm getRealm() {

@@ -9,16 +9,16 @@ import io.realm.annotations.Required;
 
 public class AccountGroup extends RealmObject {
     @PrimaryKey
-    private int id;
+    private Integer id;
 
     @Required @Index
     private String name;
 
     private String description;
 
-    private boolean isDirty;
+    private Boolean isDirty;
 
-    private boolean isDeleted;
+    private Boolean isDeleted;
 
     private Date createdDate;
 
@@ -28,11 +28,11 @@ public class AccountGroup extends RealmObject {
 
     private String updatedBy;
 
-    public int getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -52,19 +52,19 @@ public class AccountGroup extends RealmObject {
         this.description = description;
     }
 
-    public boolean isDirty() {
+    public Boolean isDirty() {
         return isDirty;
     }
 
-    public void setDirty(boolean dirty) {
+    public void setDirty(Boolean dirty) {
         isDirty = dirty;
     }
 
-    public boolean isDeleted() {
+    public Boolean isDeleted() {
         return isDeleted;
     }
 
-    public void setDeleted(boolean deleted) {
+    public void setDeleted(Boolean deleted) {
         isDeleted = deleted;
     }
 

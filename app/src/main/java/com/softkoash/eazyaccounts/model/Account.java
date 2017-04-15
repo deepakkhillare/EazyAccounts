@@ -17,7 +17,7 @@ public class Account extends RealmObject {
     @Index
     private String name;
 
-    private AccountGroup group;
+    private AccountGroup accountGroup;
 
     private String displayName;
 
@@ -184,12 +184,12 @@ public class Account extends RealmObject {
         this.updatedBy = updatedBy;
     }
 
-    public AccountGroup getGroup() {
-        return group;
+    public AccountGroup getAccountGroup() {
+        return accountGroup;
     }
 
-    public void setGroup(AccountGroup group) {
-        this.group = group;
+    public void setAccountGroup(AccountGroup accountGroup) {
+        this.accountGroup = accountGroup;
     }
 
     @Override
@@ -198,7 +198,7 @@ public class Account extends RealmObject {
                 "id=" + id +
                 ", isCompanyAccount=" + isCompanyAccount +
                 ", name='" + name + '\'' +
-                ", group=" + group +
+                ", accountGroup=" + accountGroup +
                 ", displayName='" + displayName + '\'' +
                 ", contact=" + contact +
                 ", vatNumber='" + vatNumber + '\'' +

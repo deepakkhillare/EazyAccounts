@@ -1,5 +1,6 @@
 package com.softkoash.eazyaccounts.model;
 
+import java.util.Date;
 import java.util.List;
 
 import io.realm.RealmObject;
@@ -14,6 +15,10 @@ public class CreditInfo extends RealmObject {
     private Double creditLimit1;
 
     private Double creditLimit2;
+
+    private String createdBy;
+
+    private Date createdDate;
 
     public Integer getId() {
         return id;
@@ -45,6 +50,22 @@ public class CreditInfo extends RealmObject {
 
     public void setCreditLimit2(Double creditLimit2) {
         this.creditLimit2 = creditLimit2;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public Date getCreatedDate() {
+        return createdDate;
+    }
+
+    public void setCreatedDate(Date createdDate) {
+        this.createdDate = createdDate;
     }
 
     @Override

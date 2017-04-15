@@ -1,5 +1,7 @@
 package com.softkoash.eazyaccounts.model;
 
+import java.util.Date;
+
 import io.realm.RealmObject;
 import io.realm.annotations.PrimaryKey;
 
@@ -18,6 +20,10 @@ public class Contact extends RealmObject{
     private String email;
 
     private String primaryMobile;
+
+    private Date createdDate;
+
+    private String createdBy;
 
     public Integer getId() {
         return id;
@@ -73,6 +79,22 @@ public class Contact extends RealmObject{
 
     public void setPrimaryMobile(String primaryMobile) {
         this.primaryMobile = primaryMobile;
+    }
+
+    public Date getCreatedDate() {
+        return createdDate;
+    }
+
+    public void setCreatedDate(Date createdDate) {
+        this.createdDate = createdDate;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
     }
 
     @Override
