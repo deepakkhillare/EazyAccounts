@@ -2,12 +2,16 @@ package com.softkoash.eazyaccounts;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.ResultReceiver;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -15,8 +19,11 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
+import com.softkoash.eazyaccounts.migration.MigrationStats;
 import com.softkoash.eazyaccounts.migration.service.MigrationService;
+import com.softkoash.eazyaccounts.util.Constants;
 import com.softkoash.eazyaccounts.util.FileUtil;
+import com.softkoash.eazyaccounts.util.UiUtil;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -26,11 +33,9 @@ public class MainActivity extends AppCompatActivity {
     private final int REQUEST_FILE_CHOOSER = 1;
     private final int WRITE_PERMISSION_REQUEST_CODE = 999;
     private final int READ_PERMISSION_REQUEST_CODE = 998;
-    private boolean isWritingAllowed = false;
-    private boolean isReadingAllowed = false;
-
     //widgets
     private Button openFileButton = null;
+    private String exportDBFilePath;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,9 +76,43 @@ public class MainActivity extends AppCompatActivity {
             Uri selectedFile = data.getData();
             String filePath = FileUtil.getPath(this, selectedFile);
             Intent serviceIntent = new Intent(mContext, MigrationService.class);
+            serviceIntent.putExtra("receiver", new ResultReceiver(new Handler()) {
+                @Override
+                protected void onReceiveResult(int resultCode, Bundle resultData) {
+                    super.onReceiveResult(resultCode, resultData);
+                    if (resultCode == Constants.RESULT_PROGRESS_UPDATE) {
+                        UiUtil.updateProgressDialog(resultData.getString(Constants.BUNDLE_PROGRESS_MESSAGE),
+                                resultData.getInt(Constants.BUNDLE_PROGRESS_PERCENT));
+                    } else {
+                        UiUtil.dismissProgressDialog();
+                        if (resultCode == Constants.RESULT_SUCCESS) {
+                            MigrationStats stats = (MigrationStats)resultData.getParcelable(Constants.BUNDLE_MIGRATION_STATS);
+                            new AlertDialog.Builder(MainActivity.this)
+                                    .setMessage("Migration completed successfully: " + stats)
+                                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            dialog.dismiss();
+                                        }
+                                    })
+                                    .show();
+                        } else {
+                            new AlertDialog.Builder(MainActivity.this)
+                                    .setMessage("Migration failed with error: " + resultData.getString(Constants.BUNDLE_ERROR_MESSAGE))
+                                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            dialog.dismiss();
+                                        }
+                                    })
+                                    .show();
+                        }
+                    }
+                }
+            });
             serviceIntent.putExtra("DB_FILE_PATH", filePath);
             mContext.startService(serviceIntent);
-//            UiUtil.createProgressDialog(this);
+            UiUtil.createProgressDialog(this);
         }
     }
 
@@ -107,7 +146,6 @@ public class MainActivity extends AppCompatActivity {
             case WRITE_PERMISSION_REQUEST_CODE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Log.e("value", "Permission Granted, Now you can use local drive for write.");
-                    isWritingAllowed = true;
                 } else {
                     Log.e("value", "Permission Denied, You cannot use local drive for write.");
                 }
@@ -115,7 +153,6 @@ public class MainActivity extends AppCompatActivity {
             case READ_PERMISSION_REQUEST_CODE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Log.e("value", "Permission Granted, Now you can use local drive for read.");
-                    isReadingAllowed = true;
                 } else {
                     Log.e("value", "Permission Denied, You cannot use local drive for read.");
                 }

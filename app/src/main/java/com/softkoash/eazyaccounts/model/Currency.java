@@ -1,8 +1,6 @@
 package com.softkoash.eazyaccounts.model;
 
 import java.util.Date;
-import java.util.Random;
-import java.util.RandomAccess;
 
 import io.realm.Realm;
 import io.realm.RealmObject;
@@ -10,10 +8,11 @@ import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-public class Currency extends RealmObject implements AutoIncrementable {
+public class Currency extends RealmObject {
     @PrimaryKey
     private Integer id;
     @Required
+    @Index
     private Integer orderNumber;
     @Required
     @Index
@@ -129,21 +128,20 @@ public class Currency extends RealmObject implements AutoIncrementable {
     }
 
     @Override
-    public void setPrimaryKey(int primaryKey) {
-        this.id = primaryKey;
-    }
-
-    @Override
-    public int getNextPrimaryKey(Realm realm) {
-        Number primaryKey = realm.where(Currency.class).max("id");
-        int primaryKeyIntValue;
-        if (primaryKey == null) {
-            Random r = new Random();
-            int i1 = r.nextInt(99 - 1) + 1;
-            primaryKeyIntValue = i1;
-        } else {
-            primaryKeyIntValue = primaryKey.intValue() + 100;
-        }
-        return primaryKeyIntValue;
+    public String toString() {
+        return "Currency{" +
+                "id=" + id +
+                ", orderNumber=" + orderNumber +
+                ", name='" + name + '\'' +
+                ", code='" + code + '\'' +
+                ", decimalScale=" + decimalScale +
+                ", isDirty=" + isDirty +
+                ", isDeleted=" + isDeleted +
+                ", createdDate=" + createdDate +
+                ", updateDate=" + updateDate +
+                ", company=" + company +
+                ", createdBy='" + createdBy + '\'' +
+                ", updatedBy='" + updatedBy + '\'' +
+                '}';
     }
 }

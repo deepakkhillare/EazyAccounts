@@ -8,7 +8,7 @@ import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-public class Unit extends RealmObject implements AutoIncrementable {
+public class Unit extends RealmObject {
     @PrimaryKey
     private Integer id;
     @Required
@@ -108,20 +108,18 @@ public class Unit extends RealmObject implements AutoIncrementable {
     }
 
     @Override
-    public void setPrimaryKey(int primaryKey) {
-        this.id = primaryKey;
-    }
-
-    @Override
-    public int getNextPrimaryKey(Realm realm) {
-        Number primaryKey = realm.where(Unit.class).max("id");
-        int primaryKeyIntValue;
-
-        if (primaryKey == null) {
-            primaryKeyIntValue = 1;
-        } else {
-            primaryKeyIntValue = primaryKey.intValue() + 1;
-        }
-        return primaryKeyIntValue;
+    public String toString() {
+        return "Unit{" +
+                "id=" + id +
+                ", code='" + code + '\'' +
+                ", name='" + name + '\'' +
+                ", decimalScale=" + decimalScale +
+                ", isDirty=" + isDirty +
+                ", isDeleted=" + isDeleted +
+                ", createdDate=" + createdDate +
+                ", updatedDate=" + updatedDate +
+                ", createdBy='" + createdBy + '\'' +
+                ", updatedBy='" + updatedBy + '\'' +
+                '}';
     }
 }

@@ -1,30 +1,33 @@
 package com.softkoash.eazyaccounts.model;
 
 import java.util.Date;
+import java.util.List;
 
+import io.realm.RealmList;
 import io.realm.RealmObject;
-import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-public class ProductGroup extends RealmObject {
+public class VoucherEntry extends RealmObject {
     @PrimaryKey
     private Integer id;
 
-    @Required @Index
-    private String name;
+    private Account account;
 
-    private String description;
+    private RealmList<CurrencyValue> amount;
+
+    private String type;
 
     private Boolean isDirty;
 
     private Boolean isDeleted;
 
+    @Required
     private Date createdDate;
 
-    private String createdBy;
-
     private Date updatedDate;
+
+    private String createdBy;
 
     private String updatedBy;
 
@@ -36,23 +39,31 @@ public class ProductGroup extends RealmObject {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public Account getAccount() {
+        return account;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setAccount(Account account) {
+        this.account = account;
     }
 
-    public String getDescription() {
-        return description;
+    public RealmList<CurrencyValue> getAmount() {
+        return amount;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public void setAmount(RealmList<CurrencyValue> amount) {
+        this.amount = amount;
     }
 
-    public Boolean isDirty() {
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public Boolean getDirty() {
         return isDirty;
     }
 
@@ -60,7 +71,7 @@ public class ProductGroup extends RealmObject {
         isDirty = dirty;
     }
 
-    public Boolean isDeleted() {
+    public Boolean getDeleted() {
         return isDeleted;
     }
 
@@ -76,20 +87,20 @@ public class ProductGroup extends RealmObject {
         this.createdDate = createdDate;
     }
 
-    public String getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
-
     public Date getUpdatedDate() {
         return updatedDate;
     }
 
     public void setUpdatedDate(Date updatedDate) {
         this.updatedDate = updatedDate;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
     }
 
     public String getUpdatedBy() {
@@ -102,16 +113,18 @@ public class ProductGroup extends RealmObject {
 
     @Override
     public String toString() {
-        return "ProductGroup{" +
+        return "VoucherEntry{" +
                 "id=" + id +
-                ", name='" + name + '\'' +
-                ", description='" + description + '\'' +
+                ", account=" + account +
+                ", amount=" + amount +
+                ", type='" + type + '\'' +
                 ", isDirty=" + isDirty +
                 ", isDeleted=" + isDeleted +
                 ", createdDate=" + createdDate +
-                ", createdBy='" + createdBy + '\'' +
                 ", updatedDate=" + updatedDate +
+                ", createdBy='" + createdBy + '\'' +
                 ", updatedBy='" + updatedBy + '\'' +
                 '}';
     }
 }
+

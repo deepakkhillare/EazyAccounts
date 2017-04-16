@@ -7,7 +7,7 @@ import io.realm.annotations.Index;
 import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
-public class ProductGroup extends RealmObject {
+public class AccountGroup extends RealmObject {
     @PrimaryKey
     private Integer id;
 
@@ -102,7 +102,7 @@ public class ProductGroup extends RealmObject {
 
     @Override
     public String toString() {
-        return "ProductGroup{" +
+        return "AccountGroup{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
                 ", description='" + description + '\'' +
