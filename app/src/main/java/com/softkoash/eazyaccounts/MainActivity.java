@@ -40,7 +40,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
         if (Build.VERSION.SDK_INT >= 23) {
             if (checkPermission()) {
                 initWidgets();
@@ -54,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initWidgets() {
+        setContentView(R.layout.activity_main);
         this.openFileButton = (Button) findViewById(R.id.btnOpenFile);
         this.openFileButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -61,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
                 openFileChooser();
             }
         });
+
     }
 
     private void openFileChooser() {
@@ -74,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
         mContext = this.getApplication().getApplicationContext();
         if (requestCode == REQUEST_FILE_CHOOSER && resultCode == RESULT_OK) {
             Uri selectedFile = data.getData();
-            String filePath = FileUtil.getPath(this, selectedFile);
+            exportDBFilePath = FileUtil.getPath(this, selectedFile);
             Intent serviceIntent = new Intent(mContext, MigrationService.class);
             serviceIntent.putExtra("receiver", new ResultReceiver(new Handler()) {
                 @Override
@@ -110,7 +111,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             });
-            serviceIntent.putExtra("DB_FILE_PATH", filePath);
+            serviceIntent.putExtra("DB_FILE_PATH", exportDBFilePath);
             mContext.startService(serviceIntent);
             UiUtil.createProgressDialog(this);
         }
@@ -146,6 +147,7 @@ public class MainActivity extends AppCompatActivity {
             case WRITE_PERMISSION_REQUEST_CODE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Log.e("value", "Permission Granted, Now you can use local drive for write.");
+                    initWidgets();
                 } else {
                     Log.e("value", "Permission Denied, You cannot use local drive for write.");
                 }
