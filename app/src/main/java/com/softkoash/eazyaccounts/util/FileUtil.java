@@ -9,6 +9,9 @@ import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 
+import java.io.File;
+import java.io.FileFilter;
+
 /**
  * Created by Deepak on 3/28/2017.
  */
@@ -112,6 +115,26 @@ public class FileUtil {
      */
     public static boolean isGooglePhotosUri(Uri uri) {
         return "com.google.android.apps.photos.content".equals(uri.getAuthority());
+    }
+
+    public static boolean hasFileExtension(String filePath, final String extension) {
+        File file = new File(filePath);
+        if (file.exists()) {
+            if (file.isFile() && file.getPath().endsWith(extension)) {
+                return true;
+            } else  {
+                File[] files = file.listFiles(new FileFilter() {
+                    @Override
+                    public boolean accept(File pathname) {
+                        return pathname.getPath().endsWith(extension);
+                    }
+                });
+                if (null != files && files.length > 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
 }

@@ -7,6 +7,8 @@ import android.os.Parcelable;
  * Created by Deepak on 3/28/2017.
  */
 public class MigrationStats implements Parcelable {
+    private String realmFilePath;
+    private String companyName;
     private int companiesCreated;
     private int accountsCreated;
     private int accountGroupsCreated;
@@ -203,11 +205,28 @@ public class MigrationStats implements Parcelable {
         this.productCreated = productCreated;
     }
 
+    public String getRealmFilePath() {
+        return realmFilePath;
+    }
+
+    public void setRealmFilePath(String realmFilePath) {
+        this.realmFilePath = realmFilePath;
+    }
+
+    public String getCompanyName() {
+        return companyName;
+    }
+
+    public void setCompanyName(String companyName) {
+        this.companyName = companyName;
+    }
 
     @Override
     public String toString() {
         return "MigrationStats{" +
-                "companiesCreated=" + companiesCreated +
+                ", realmPath=" + realmFilePath +
+                ", companyName=" + companyName +
+                ", companiesCreated=" + companiesCreated +
                 ", accountsCreated=" + accountsCreated +
                 ", accountGroupsCreated=" + accountGroupsCreated +
                 ", contactCreated=" + contactCreated +
@@ -246,7 +265,7 @@ public class MigrationStats implements Parcelable {
                 unitCreated,
                 productGroupCreated,
                 productCreated});
-
+        dest.writeStringArray(new String[] {realmFilePath, companyName});
     }
 
     public MigrationStats() {
@@ -270,5 +289,9 @@ public class MigrationStats implements Parcelable {
         unitCreated = arr[11];
         productGroupCreated = arr[12];
         productCreated = arr[13];
+        String[] stringArr = new String[2];
+        in.readStringArray(stringArr);
+        realmFilePath = stringArr[0];
+        companyName = stringArr[1];
     }
 }

@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">EazyAccounts</string>
+    <string name="invalid_password">Invalid password</string>
+    <string name="invalid_file_path">Invalid File Path</string>
 </resources>

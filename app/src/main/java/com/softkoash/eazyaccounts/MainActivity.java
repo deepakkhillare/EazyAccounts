@@ -1,8 +1,6 @@
 package com.softkoash.eazyaccounts;
 
 import android.Manifest;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -11,31 +9,45 @@ import android.os.Handler;
 import android.os.ResultReceiver;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.softkoash.eazyaccounts.migration.MigrationStats;
 import com.softkoash.eazyaccounts.migration.service.MigrationService;
 import com.softkoash.eazyaccounts.util.Constants;
+import com.softkoash.eazyaccounts.util.DirectoryChooserDialog;
 import com.softkoash.eazyaccounts.util.FileUtil;
 import com.softkoash.eazyaccounts.util.UiUtil;
+
+import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
     private final String TAG = MainActivity.class.getName();
-    private Context mContext;
+
     //request codes
     private final int REQUEST_FILE_CHOOSER = 1;
     private final int WRITE_PERMISSION_REQUEST_CODE = 999;
     private final int READ_PERMISSION_REQUEST_CODE = 998;
+
     //widgets
     private Button openFileButton = null;
-    private String exportDBFilePath;
+    private EditText passwordText = null;
+    private RadioGroup fileTypeRadio = null;
+    private Button migrateButton = null;
+    private EditText selectedFilePathText = null;
+    private ListView lvMigrationResults = null;
+    private ArrayAdapter<MigrationStats> migrationStatsArrayAdapter = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,19 +61,45 @@ public class MainActivity extends AppCompatActivity {
         } else {
             initWidgets();
         }
-
     }
 
     private void initWidgets() {
         setContentView(R.layout.activity_main);
         this.openFileButton = (Button) findViewById(R.id.btnOpenFile);
+        this.passwordText = (EditText) findViewById(R.id.tv_password);
+        this.fileTypeRadio = (RadioGroup) findViewById(R.id.rgFileType);
+        this.migrateButton = (Button) findViewById(R.id.btnMigrate);
+        this.selectedFilePathText = (EditText) findViewById(R.id.tv_selected_file);
+        this.lvMigrationResults = (ListView) findViewById(R.id.lvMigrationResults);
+        migrationStatsArrayAdapter = new ArrayAdapter<MigrationStats>(MainActivity.this, R.layout.migration_result_layout, R.id.tvMigrationResult, new ArrayList<MigrationStats>());
+        lvMigrationResults.setAdapter(migrationStatsArrayAdapter);
+
         this.openFileButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                openFileChooser();
+                RadioButton selectedFileType = (RadioButton) findViewById(fileTypeRadio.getCheckedRadioButtonId());
+                if ("File".equals(selectedFileType.getText())) {
+                    openFileChooser();
+                } else {
+                    openDirectoryChooser();
+                }
             }
         });
 
+        this.migrateButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                migrationStatsArrayAdapter.clear();
+                if (null != passwordText.getText() && passwordText.getText().toString().trim().isEmpty()) {
+                    passwordText.setError(getString(R.string.invalid_password));
+                } else if ((null != selectedFilePathText.getText() && selectedFilePathText.getText().toString().trim().isEmpty())
+                        || (!FileUtil.hasFileExtension(selectedFilePathText.getText().toString(), ".db"))) {
+                    selectedFilePathText.setError(getString(R.string.invalid_file_path));
+                } else {
+                    migrateSqliteToRealm(passwordText.getText().toString(), selectedFilePathText.getText().toString());
+                }
+            }
+        });
     }
 
     private void openFileChooser() {
@@ -69,51 +107,51 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(Intent.createChooser(intent, "Select DB"), REQUEST_FILE_CHOOSER);
     }
 
+    private void openDirectoryChooser() {
+        DirectoryChooserDialog directoryChooserDialog = new DirectoryChooserDialog(MainActivity.this, new DirectoryChooserDialog.ChosenDirectoryListener() {
+            @Override
+            public void onChosenDir(String chosenDir) {
+                selectedFilePathText.setText(chosenDir);
+            }
+        });
+        directoryChooserDialog.setNewFolderEnabled(false);
+        directoryChooserDialog.chooseDirectory();
+    }
+
+    private void migrateSqliteToRealm(String realmPassword, String selectedFilePath) {
+        Intent serviceIntent = new Intent(MainActivity.this, MigrationService.class);
+        serviceIntent.putExtra("receiver", new ResultReceiver(new Handler()) {
+            @Override
+            protected void onReceiveResult(int resultCode, Bundle resultData) {
+                super.onReceiveResult(resultCode, resultData);
+                if (resultCode == Constants.RESULT_PROGRESS_UPDATE) {
+                    UiUtil.updateProgressDialog(resultData.getString(Constants.BUNDLE_PROGRESS_MESSAGE),
+                            resultData.getInt(Constants.BUNDLE_PROGRESS_PERCENT));
+                } else {
+                    UiUtil.dismissProgressDialog();
+                    if (resultCode == Constants.RESULT_SUCCESS) {
+                        MigrationStats stats = (MigrationStats) resultData.getParcelable(Constants.BUNDLE_MIGRATION_STATS);
+                        UiUtil.showDialog(MainActivity.this, "Migration for company: "+ stats.getCompanyName() + " completed successfully: " + stats);
+                        migrationStatsArrayAdapter.add(stats);
+                    } else {
+                        UiUtil.showDialog(MainActivity.this, "Migration failed with error: " + resultData.getString(Constants.BUNDLE_ERROR_MESSAGE));
+                    }
+                }
+            }
+        });
+        serviceIntent.putExtra("DB_FILE_PATH", selectedFilePath);
+        serviceIntent.putExtra("REALM_PASSWORD", realmPassword);
+        startService(serviceIntent);
+        UiUtil.createProgressDialog(this);
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        mContext = this.getApplication().getApplicationContext();
         if (requestCode == REQUEST_FILE_CHOOSER && resultCode == RESULT_OK) {
             Uri selectedFile = data.getData();
-            exportDBFilePath = FileUtil.getPath(this, selectedFile);
-            Intent serviceIntent = new Intent(mContext, MigrationService.class);
-            serviceIntent.putExtra("receiver", new ResultReceiver(new Handler()) {
-                @Override
-                protected void onReceiveResult(int resultCode, Bundle resultData) {
-                    super.onReceiveResult(resultCode, resultData);
-                    if (resultCode == Constants.RESULT_PROGRESS_UPDATE) {
-                        UiUtil.updateProgressDialog(resultData.getString(Constants.BUNDLE_PROGRESS_MESSAGE),
-                                resultData.getInt(Constants.BUNDLE_PROGRESS_PERCENT));
-                    } else {
-                        UiUtil.dismissProgressDialog();
-                        if (resultCode == Constants.RESULT_SUCCESS) {
-                            MigrationStats stats = (MigrationStats)resultData.getParcelable(Constants.BUNDLE_MIGRATION_STATS);
-                            new AlertDialog.Builder(MainActivity.this)
-                                    .setMessage("Migration completed successfully: " + stats)
-                                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                                        @Override
-                                        public void onClick(DialogInterface dialog, int which) {
-                                            dialog.dismiss();
-                                        }
-                                    })
-                                    .show();
-                        } else {
-                            new AlertDialog.Builder(MainActivity.this)
-                                    .setMessage("Migration failed with error: " + resultData.getString(Constants.BUNDLE_ERROR_MESSAGE))
-                                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                                        @Override
-                                        public void onClick(DialogInterface dialog, int which) {
-                                            dialog.dismiss();
-                                        }
-                                    })
-                                    .show();
-                        }
-                    }
-                }
-            });
-            serviceIntent.putExtra("DB_FILE_PATH", exportDBFilePath);
-            mContext.startService(serviceIntent);
-            UiUtil.createProgressDialog(this);
+            String selectedFilePath = FileUtil.getPath(this, selectedFile);
+            selectedFilePathText.setText(selectedFilePath);
         }
     }
 
@@ -138,7 +176,6 @@ public class MainActivity extends AppCompatActivity {
         } else {
             ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, READ_PERMISSION_REQUEST_CODE);
         }
-
     }
 
     @Override

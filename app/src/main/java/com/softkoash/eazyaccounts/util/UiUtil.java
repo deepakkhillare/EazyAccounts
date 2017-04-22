@@ -2,6 +2,8 @@ package com.softkoash.eazyaccounts.util;
 
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.support.v7.app.AlertDialog;
 import android.widget.Toast;
 
 public class UiUtil {
@@ -29,5 +31,17 @@ public class UiUtil {
 
     public static void dismissProgressDialog() {
         progressDialog.dismiss();
+    }
+
+    public static void showDialog(Context activityContext, String message) {
+        new AlertDialog.Builder(activityContext)
+                .setMessage(message)
+                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                })
+                .show();
     }
 }
