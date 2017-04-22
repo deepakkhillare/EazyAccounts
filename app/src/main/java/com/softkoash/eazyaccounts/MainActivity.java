@@ -77,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
         this.openFileButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                selectedFilePathText.setError(null);
                 RadioButton selectedFileType = (RadioButton) findViewById(fileTypeRadio.getCheckedRadioButtonId());
                 if ("File".equals(selectedFileType.getText())) {
                     openFileChooser();
