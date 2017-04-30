@@ -15,7 +15,6 @@ import io.realm.Realm;
  */
 public class EazyAccountsApp extends Application {
 
-    public static final String encryption = "softkoash0softkoash0softkoash0softkoash0softkoash0softkoash0soft";
     @Override
     public void onCreate() {
         super.onCreate();
@@ -32,4 +31,6 @@ public class EazyAccountsApp extends Application {
                                 .build())
                         .build());
     }
+
+
 }

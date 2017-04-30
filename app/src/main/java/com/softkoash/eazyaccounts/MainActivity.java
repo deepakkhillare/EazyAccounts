@@ -1,14 +1,19 @@
 package com.softkoash.eazyaccounts;
 
 import android.Manifest;
+import android.app.Application;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.ResultReceiver;
+import android.os.storage.StorageManager;
+import android.os.storage.StorageVolume;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.provider.DocumentFile;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -29,7 +34,13 @@ import com.softkoash.eazyaccounts.util.DirectoryChooserDialog;
 import com.softkoash.eazyaccounts.util.FileUtil;
 import com.softkoash.eazyaccounts.util.UiUtil;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -73,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
         this.lvMigrationResults = (ListView) findViewById(R.id.lvMigrationResults);
         migrationStatsArrayAdapter = new ArrayAdapter<MigrationStats>(MainActivity.this, R.layout.migration_result_layout, R.id.tvMigrationResult, new ArrayList<MigrationStats>());
         lvMigrationResults.setAdapter(migrationStatsArrayAdapter);
+        this.selectedFilePathText.setText(getExternalMediaDirs()[0].getPath());
 
         this.openFileButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -104,19 +116,36 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openFileChooser() {
-        Intent intent = new Intent().setType("*/*").setAction(Intent.ACTION_GET_CONTENT);
-        startActivityForResult(Intent.createChooser(intent, "Select DB"), REQUEST_FILE_CHOOSER);
+        startActivityForResult(new Intent(Intent.ACTION_GET_CONTENT), REQUEST_FILE_CHOOSER);
+//        Intent intent = new Intent().setType("*/*").setAction(Intent.ACTION_GET_CONTENT);
+//        startActivityForResult(Intent.createChooser(intent, "Select DB"), REQUEST_FILE_CHOOSER);
     }
 
     private void openDirectoryChooser() {
-        DirectoryChooserDialog directoryChooserDialog = new DirectoryChooserDialog(MainActivity.this, new DirectoryChooserDialog.ChosenDirectoryListener() {
-            @Override
-            public void onChosenDir(String chosenDir) {
-                selectedFilePathText.setText(chosenDir);
-            }
-        });
-        directoryChooserDialog.setNewFolderEnabled(false);
-        directoryChooserDialog.chooseDirectory();
+//        DirectoryChooserDialog directoryChooserDialog = new DirectoryChooserDialog(MainActivity.this, new DirectoryChooserDialog.ChosenDirectoryListener() {
+//            @Override
+//            public void onChosenDir(String chosenDir) {
+//                selectedFilePathText.setText(chosenDir);
+////                writeToDirectory(Uri.fromFile(new File(chosenDir)), "testdir.txt");
+//            }
+//        });
+//        directoryChooserDialog.setNewFolderEnabled(false);
+//        directoryChooserDialog.chooseDirectory();
+//        try {
+//            StorageManager storageManager = (StorageManager) getSystemService(STORAGE_SERVICE);
+//            Method getVolumeListMethod = StorageManager.class.getDeclaredMethod("getVolumeList");
+//            Object[] storageVolumeList = (Object[]) getVolumeListMethod.invoke(storageManager);
+//            for (Object sv : storageVolumeList) {
+//                Log.i(TAG, "sv: " + sv);
+//            }
+//        } catch(Exception e) {
+//            Log.e(TAG, "StorageVolume Error", e);
+//        }
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        intent.setFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        intent.setFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(intent, REQUEST_FILE_CHOOSER);
     }
 
     private void migrateSqliteToRealm(String realmPassword, String selectedFilePath) {
@@ -150,9 +179,62 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_FILE_CHOOSER && resultCode == RESULT_OK) {
-            Uri selectedFile = data.getData();
-            String selectedFilePath = FileUtil.getPath(this, selectedFile);
-            selectedFilePathText.setText(selectedFilePath);
+            Uri selectedFileUri = data.getData();
+//            try {
+//                StorageManager storageManager = (StorageManager) getSystemService(STORAGE_SERVICE);
+//                for(StorageVolume sv: storageManager.getStorageVolumes()) {
+//                    Log.i(TAG, "sv: " + sv);
+//                }
+//                StorageVolume storageVolume = storageManager.getStorageVolume(new File(FileUtil.getFullPathFromTreeUri(selectedFileUri, this)));
+//                Method accessIntentMethod = StorageVolume.class.getDeclaredMethod("createAccessIntent");
+//                Intent intent = (Intent)accessIntentMethod.invoke(storageVolume, null);
+//                Intent intent = storageVolume.createAccessIntent(null);
+//                Method getVolumeListMethod = StorageManager.class.getDeclaredMethod("getVolumeList");
+//                Object[] storageVolumeList = (Object[]) getVolumeListMethod.invoke(storageManager);
+//                for (Object sv : storageVolumeList) {
+//                    Log.i(TAG, "sv: " + sv);
+//                }
+
+//                startActivityForResult(intent, 999);
+//            } catch(Exception e) {
+//                Log.e(TAG, "Error with storage volume access", e);
+//            } catch(Error e) {
+//                Log.e(TAG, "Error with storage volume access", e);
+//            }
+////            FileUtil.getRealPathFromURI_API19(this, selectedFileUri);
+//        } else if (requestCode == 999 && resultCode == RESULT_OK) {
+            setSelectedFile(data);
+        }
+//        Uri treeUri = data.getData();
+//        writeToDirectory(treeUri, "test.txt");
+    }
+
+    private void setSelectedFile(Intent data) {
+        Uri selectedFileUri = data.getData();
+        //            DocumentFile pickedDir = DocumentFile.fromTreeUri(this, selectedFileUri);
+        final int takeFlags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        grantUriPermission(getPackageName(), selectedFileUri, takeFlags);
+        getContentResolver().takePersistableUriPermission(selectedFileUri, takeFlags);
+//            getContentResolver().takePersistableUriPermission(selectedFileUri, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION );
+        writeToDirectory(selectedFileUri, "testfile.txt");
+//        String selectedFilePath = selectedFileUri.getPath();//FileUtil.getPath(this, selectedFileUri);
+        String selectedFilePath = FileUtil.getFullPathFromTreeUri(selectedFileUri, this);
+        Log.i(TAG, "Can write: "+ new File(selectedFilePath).canWrite());
+        selectedFilePathText.setText(selectedFilePath);
+    }
+
+    private void writeToDirectory(Uri treeUri, String filename) {
+        DocumentFile pickedDir = DocumentFile.fromTreeUri(this, treeUri);
+        grantUriPermission(getPackageName(), treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        getContentResolver().takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION );
+        DocumentFile file = pickedDir.createFile("text/plain", filename);
+        try {
+            OutputStream os = getContentResolver().openOutputStream(file.getUri());
+            os.write("test".getBytes());
+            os.flush();
+            os.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

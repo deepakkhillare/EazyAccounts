@@ -54,7 +54,7 @@ public class DirectoryChooserDialog
     public DirectoryChooserDialog(Context context, ChosenDirectoryListener chosenDirectoryListener)
     {
         m_context = context;
-        m_sdcardDirectory = Environment.getExternalStorageDirectory().getAbsolutePath();
+        m_sdcardDirectory = "/storage";//Environment.getExternalStorageDirectory().getAbsolutePath();
         m_chosenDirectoryListener = chosenDirectoryListener;
 
         try
